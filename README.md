@@ -1,12 +1,18 @@
 # datalake-def
 Cloud neutral datalake defiition file format and management CLI
 
-By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor.
+By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor. Unlike other templating options, this does not result in a dictated datalake shape. You may add as many datalake paths (buckets, containers, filesystems, etc) or as many datalake roles to the definition as you like.
 
-The same file can then be used by additional consumers in order to map users to appropriate IAM Roles, provide meaningful visualizations of the datalake for use in UIs, etc.
+The same file can then be used by additional consumers in order to map users to the most appropriate IAM Roles based on identity and paths being accessed, provide meaningful visualizations of the datalake for use in UIs, etc.
 
 Your datalake definitions may also be commited to SCM systems to share them and allow multiple admins to maintain them over the lifetime of your datalakes.
 
+## Installation
+
+1. Clone this project to your local machine
+2. Install Cmd2 project (we need to add setup.py here)
+3. cd datalake-def
+4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
 
 ## Example use:
 
