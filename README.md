@@ -1,7 +1,7 @@
 # datalake-def
 Cloud neutral datalake defiition file format and management CLI
 
-By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor. Unlike other templating options, this does not result in a dictated datalake shape. You may add as many datalake paths (buckets, containers, filesystems, etc) or as many datalake roles to the definition as you like.
+By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor. Unlike other templating options, this does not result in a restricted datalake shape. You may add as many datalake paths (buckets, containers, filesystems, etc) or as many datalake roles to the definition as you like. The resulting artifacts can be further transformed into terraform scripts, used with cloud vendor APIs or CLIs or copy and pasted manually.
 
 The same file can then be used by additional consumers in order to map users to the most appropriate IAM Roles based on identity and paths being accessed, provide meaningful visualizations of the datalake for use in UIs, etc.
 
