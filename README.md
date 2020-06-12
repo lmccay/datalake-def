@@ -1,7 +1,14 @@
 # datalake-def
 Cloud neutral datalake defiition file format and management CLI
 
-Example use:
+By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor.
+
+The same file can then be used by additional consumers in order to map users to appropriate IAM Roles, provide meaninging visualizations of the datalake for use in UIs, etc.
+
+Your datalake definitions may also be commited to SCM systems to share them and allow multiple admins to maintain them over the lifetime of your datalakes.
+
+
+## Example use:
 
      lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
      debug - was: False
@@ -41,17 +48,17 @@ Example use:
      The datalake role: RANGER_AUDIT_ROLE is assigned the iam role: cdp-ljm-ranger-audit-s3-role which has been granted: list-only for path: /ljm/data
      The datalake role: DATALAKE_ADMIN_ROLE is assigned the iam role: cdp-ljm-admin-s3-role which has been granted: full-access for path: /ljm
 
-Generated datalake directories:
+## Generated datalake directories:
 
      lmccay@strange:~/Projects/datalake-def$ ls datalakes/ljm/
      AWS/      ddf.yaml  
 
-Generated AWS Policy Aritfacts:
+## Generated AWS Policy Aritfacts:
 
      lmccay@strange:~/Projects/datalake-def$ ls datalakes/ljm/AWS/
      cdp-ljm-admin-s3-role-policy.json  cdp-ljm-idbroker-assume-role-policy.json  cdp-ljm-log-role-policy.json  cdp-ljm-ranger-audit-s3-role-policy1.json  cdp-ljm-ranger-audit-s3-role-policy.json
 
-Generated YAML DDF (Datalake Definition File):
+## Generated YAML DDF (Datalake Definition File):
 
      lmccay@strange:~/Projects/datalake-def$ cat datalakes/ljm/ddf.yaml 
      ---
