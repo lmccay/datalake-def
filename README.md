@@ -22,7 +22,6 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
 
 ## Example use:
-
      lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
      debug - was: False
      now: True
@@ -34,7 +33,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
        IDBROKER_ROLE:
          iam_role: cdp-ljm-idbroker-assume-role
          instance_profile: true
-         permissions: ['sts:assumeRoles']
+         permissions: ['sts:assume-roles']
        LOG_ROLE:
          iam_role: cdp-ljm-log-role
          instance_profile: true
@@ -43,8 +42,15 @@ Your datalake definitions may also be commited to SCM systems to share them and 
          iam_role: cdp-ljm-ranger-audit-s3-role
          permissions: ['storage:full-object-access:RANGER_AUDIT_LOCATION', 'storage:list-only:DATALAKE_BUCKET']
      nosql: {TABLE_NAME: ljm}
-     permission_weights:
-       storage: {full-access: 1, full-object-access: 2, list-only: 5, read-only: 4, read-write: 3}
+     permissions:
+       storage:
+         full-access: {description: the force, rank: 1}
+         full-object-access: {description: jedi master, rank: 2}
+         list-only: {description: youngling, rank: 5}
+         read-only: {description: padawan, rank: 4}
+         read-write: {description: jedi knight, rank: 3}
+       sts:
+         assume-roles: {description: shapeshifter, rank: 1}
      storage:
        DATALAKE_BUCKET: {path: /ljm/data}
        LOGS_BUCKET: {path: /ljm}
@@ -60,6 +66,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
      The datalake role: RANGER_AUDIT_ROLE is assigned the iam role: cdp-ljm-ranger-audit-s3-role which has been granted: full-object-access for path: /ljm/ranger/audit
      The datalake role: RANGER_AUDIT_ROLE is assigned the iam role: cdp-ljm-ranger-audit-s3-role which has been granted: list-only for path: /ljm/data
      The datalake role: DATALAKE_ADMIN_ROLE is assigned the iam role: cdp-ljm-admin-s3-role which has been granted: full-access for path: /ljm
+     
 
 ## Generated datalake directories:
 
@@ -81,7 +88,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
                  iam_role: cdp-ljm-idbroker-assume-role
                  instance_profile: true
                  permissions:
-                     - "sts:assumeRoles"
+                     - "sts:assume-roles"
          LOG_ROLE:
                  iam_role: cdp-ljm-log-role
                  instance_profile: true
@@ -114,10 +121,24 @@ Your datalake definitions may also be commited to SCM systems to share them and 
                  path: /ljm
      nosql:
          TABLE_NAME: ljm
-     permission_weights:
+     permissions:
          storage:
-             full-access: 1
-             full-object-access: 2
-             read-write: 3
-             read-only: 4
-             list-only: 5
+             full-access:
+                 rank: 1
+                 description: the force
+             full-object-access:
+                 rank: 2
+                 description: jedi master
+             read-write:
+                 rank: 3
+                 description: jedi knight
+             read-only:
+                 rank: 4
+                 description: padawan
+             list-only:
+                 rank: 5
+                 description: youngling
+         sts:
+             assume-roles:
+                 rank: 1
+                 description: shapeshifter
