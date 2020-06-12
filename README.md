@@ -3,7 +3,7 @@ Cloud neutral datalake defiition file format and management CLI
 
 By introducing a specific format for defining the shape of your datalake, we can easily use simple templating mechanisms in order to generate the needed artifacts for publishing the datalake to a cloud vendor.
 
-The same file can then be used by additional consumers in order to map users to appropriate IAM Roles, provide meaninging visualizations of the datalake for use in UIs, etc.
+The same file can then be used by additional consumers in order to map users to appropriate IAM Roles, provide meaningful visualizations of the datalake for use in UIs, etc.
 
 Your datalake definitions may also be commited to SCM systems to share them and allow multiple admins to maintain them over the lifetime of your datalakes.
 
