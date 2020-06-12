@@ -49,7 +49,7 @@ class AWSFactory:
                               ' for path: ' + d['storage_location'])
                     else:
                         print('Unknown permissions element: ' + elements[1] + ' check permissions in ddf file')
-                elif elements[0] == 'assumeRoles':
+                elif elements[0] == 'sts':
                     filepath = 'templates/aws/assume-roles.json'
                     if os.path.exists(filepath):
                         with open(filepath, 'r') as reader:

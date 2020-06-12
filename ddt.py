@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """A simple cmd2 application."""
-import cmd2, argparse, yaml, os, shutil, factories
+import cmd2, argparse, yaml, os, shutil, sys
 
 class App(cmd2.Cmd):
     """A simple cmd2 application."""
@@ -134,9 +134,40 @@ class App(cmd2.Cmd):
         os.makedirs('datalakes/' + self.datalakename + '/' + cloudname)
 
         # build the artifacts
-        from factories import CloudFactory
         factory = CloudFactory.instance(self, cloudname)
         factory.build(self.ddf)
+
+sys.path.insert(1, 'aws')
+sys.path.insert(2, 'azure')
+sys.path.insert(3, 'gcp')
+import aws, azure, gcp
+
+class CloudFactory:
+    """A cloud factory"""
+
+    def __init__(self, factory=None):
+        """cloud_factory is our abstract factory.  We can set it at will."""
+        self.cloud_factory = factory
+
+    def build(self, ddf):
+        """Generates IAM artifacts for cloud using the abstract factory"""
+        cloud = self.cloud_factory()
+        print("Cloud Type: {}".format(cloud))
+        print("Vendor: {}".format(cloud.vendor()))
+        cloud.build(ddf)
+
+    @staticmethod
+    def instance(self, cloudname):
+        if (cloudname == "AWS"):
+            from aws import AWSFactory
+            factory = CloudFactory(AWSFactory)
+        elif (cloudname == "Azure"):
+            from azure import AzureFactory
+            factory = CloudFactory(AzureFactory)
+        elif (cloudname == "GCP"):
+            from gcp import GCPFactory
+            factory = CloudFactory(GCPFactory)
+        return factory
 
 if __name__ == '__main__':
     import sys
