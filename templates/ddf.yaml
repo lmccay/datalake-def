@@ -43,5 +43,5 @@ permission_weights:
         full-access: 1
         full-object-access: 2
         read-write: 3
-        read-onlly: 4
+        read-only: 4
         list-only: 5
