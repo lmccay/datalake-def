@@ -10,9 +10,11 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 ## Installation
 
 1. Clone this project to your local machine
-2. Install Cmd2 python module (we need to add setup.py here)
+2. Install Cmd2 python module (added initial setup.py - try it!)
 
      pip install -U cmd2
+          or try new
+     python setup.py install
 
 3. cd datalake-def
 4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
