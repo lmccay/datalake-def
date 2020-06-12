@@ -1,0 +1,47 @@
+---
+datalake: ${datalake_name}
+datalake_roles:
+    IDBROKER_ROLE:
+            iam_role: cdp-${datalake_name}-idbroker-assume-role
+            instance_profile: true
+            permissions:
+                - "sts:assumeRoles"
+    LOG_ROLE:
+            iam_role: cdp-${datalake_name}-log-role
+            instance_profile: true
+            permissions:
+                - "storage:read-write:LOGS_LOCATION_BASE"
+    RANGER_AUDIT_ROLE:
+            iam_role: cdp-${datalake_name}-ranger-audit-s3-role
+            permissions:
+                - "storage:full-object-access:RANGER_AUDIT_LOCATION"
+                - "storage:list-only:DATALAKE_BUCKET"
+    DATALAKE_ADMIN_ROLE:
+            iam_role: cdp-${datalake_name}-admin-s3-role
+            permissions:
+                - "storage:full-access:STORAGE_LOCATION_BASE"
+storage:
+    STORAGE_LOCATION_BASE:
+            # main data directory
+            path: /${datalake_name}
+    DATALAKE_BUCKET:
+            # main data directory
+            path: /${datalake_name}/data
+    RANGER_AUDIT_LOCATION:
+            # ranger audit logs
+            path: /${datalake_name}/ranger/audit
+    LOGS_LOCATION_BASE:
+            # logs for fluentd usecases
+            path: /${datalake_name}/logs
+    LOGS_BUCKET:
+            # logs for fluentd usecases
+            path: /${datalake_name}
+nosql:
+    TABLE_NAME: ${datalake_name}
+permission_weights:
+    storage:
+        full-access: 1
+        full-object-access: 2
+        read-write: 3
+        read-onlly: 4
+        list-only: 5
