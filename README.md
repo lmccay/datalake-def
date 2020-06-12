@@ -13,7 +13,9 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 2. Install Cmd2 python module (added initial setup.py - try it!)
 
      pip install -U cmd2
-          or try new
+     
+        or try new
+          
      python setup.py install
 
 3. cd datalake-def
