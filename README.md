@@ -1,7 +1,7 @@
 # datalake-def
 Cloud neutral datalake defiition file format and management CLI
 
-lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
+`lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
 debug - was: False
 now: True
 datalake: ljm
@@ -84,7 +84,7 @@ storage:
 nosql:
     TABLE_NAME: ljm
 permission_weights:
-    storage:
+    storage:`
         full-access: 1
         full-object-access: 2
         read-write: 3
