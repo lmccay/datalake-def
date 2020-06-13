@@ -9,15 +9,18 @@ datalake_roles:
     LOG_ROLE:
             iam_role: cdp-${datalake_name}-log-role
             instance_profile: true
+            trust: IDBROKER_ROLE
             permissions:
                 - "storage:read-write:LOGS_LOCATION_BASE"
     RANGER_AUDIT_ROLE:
             iam_role: cdp-${datalake_name}-ranger-audit-s3-role
+            trust: IDBROKER_ROLE
             permissions:
                 - "storage:full-object-access:RANGER_AUDIT_LOCATION"
                 - "storage:list-only:DATALAKE_BUCKET"
     DATALAKE_ADMIN_ROLE:
             iam_role: cdp-${datalake_name}-admin-s3-role
+            trust: IDBROKER_ROLE
             permissions:
                 - "storage:full-access:STORAGE_LOCATION_BASE"
                 - "db:full-table-access:${datalake_name}-table"

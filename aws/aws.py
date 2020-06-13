@@ -1,4 +1,4 @@
-import os, boto3, sys, json
+import os, boto3, sys, json, time
 
 class AWSFactory:
     def vendor(self):
@@ -89,31 +89,95 @@ class AWSFactory:
         # Create IAM client
         iam = boto3.client('iam')
 
+        # TODO determine the trusted roles up front and create them all rather than hardcode IDBROKER_ROLE
+        # let's create IDBROKER_ROLE first as it is needed to create other roles with trust relationship
+        idbrole = ddf['datalake_roles']['IDBROKER_ROLE']
+        assume_role_policy_document = json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [
+            {
+                 "Effect": "Allow",
+                 "Principal": {
+                     "Service": "ec2.amazonaws.com"
+                 },
+                 "Action": "sts:AssumeRole"
+             }
+           ]
+        })
+        print(assume_role_policy_document)
+
+        create_role_response = iam.create_role(
+            RoleName = idbrole['iam_role'],
+            AssumeRolePolicyDocument = assume_role_policy_document
+        )
+        print (create_role_response)
+
+        # Get a policy
+        response = iam.get_role (RoleName=idbrole['iam_role'])
+        idb_arn = response['Role']['Arn']
+
+        time.sleep(10)
+
         for name,role in ddf['datalake_roles'].items():
-            instanceProfile = False
-            #if "instance_profile" in role:
-            #    instanceProfile = role['instance_profile']
-            #print(name + ', iamRole=' + role['iam_role'] + ', instanceProfile=' + str(instanceProfile) + ', permissions=' + str(role['permissions']))
+            # TODO determine the trusted roles up front and check the list rather than hardcode IDBROKER_ROLE
+            if name != 'IDBROKER_ROLE':
+                print(name)
+                instanceProfile = False
+                # TODO: process instance profile attachment
+                #if "instance_profile" in role:
+                #    instanceProfile = role['instance_profile']
+                #print(name + ', iamRole=' + role['iam_role'] + ', instanceProfile=' + str(instanceProfile) + ', permissions=' + str(role['permissions']))
 
-            # find policy files based on iam_role name
-            path = 'datalakes/' + ddf['datalake'] + '/AWS/'
-            role_name = role['iam_role']
-            filename_base = path + role_name + '-policy'
-            suffix = ''
-            count = 0
-            while os.path.exists(filename_base + suffix + '.json'):
-                # open file
-                with open(filename_base + suffix + '.json', 'r') as reader:
-    	            policy = reader.read()
+                # get role name
+                role_name = role['iam_role']
 
-                print(policy)
-                print(filename_base + suffix)
-                response = iam.create_policy(
-                     PolicyName=role_name + '-policy' + suffix,
-                     PolicyDocument=policy)
-                print(response)
-                count = count + 1
-                suffix = '-' + str(count)
+                # TODO get the arn for the datalake_role trusted by this role rather than hardcode for idbroker_role
+                # create role with trust policy document
+                assume_role_policy_document2 = json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {
+                            "AWS": idb_arn
+                        },
+                        "Action": "sts:AssumeRole"
+                    }
+                    ]
+                })
+
+                print(assume_role_policy_document)
+
+                create_role_response = iam.create_role(
+                    RoleName = role_name,
+                    AssumeRolePolicyDocument = assume_role_policy_document2
+                )
+
+                # find policy files based on iam_role name
+                path = 'datalakes/' + ddf['datalake'] + '/AWS/'
+                filename_base = path + role_name + '-policy'
+                suffix = ''
+                count = 0
+                while os.path.exists(filename_base + suffix + '.json'):
+                    # open file
+                    with open(filename_base + suffix + '.json', 'r') as reader:
+        	            policy = reader.read()
+
+                    print(policy)
+                    print(filename_base + suffix)
+                    response = iam.create_policy(
+                         PolicyName=role_name + '-policy' + suffix,
+                         PolicyDocument=policy)
+                    print(response)
+
+                    # TODO: attach each policy to the corresponding role
+                    time.sleep(10)
+                    response = iam.attach_role_policy(
+                        RoleName=role_name, PolicyArn=response['Policy']['Arn'])
+
+                    print(response)
+                    count = count + 1
+                    suffix = '-' + str(count)
 
     def __str__(self):
         return "AWS"
