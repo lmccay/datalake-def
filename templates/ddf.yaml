@@ -5,7 +5,7 @@ datalake_roles:
             iam_role: cdp-${datalake_name}-idbroker-assume-role
             instance_profile: true
             permissions:
-                - "sts:assumeRoles"
+                - "sts:assume-roles"
     LOG_ROLE:
             iam_role: cdp-${datalake_name}-log-role
             instance_profile: true
@@ -20,6 +20,7 @@ datalake_roles:
             iam_role: cdp-${datalake_name}-admin-s3-role
             permissions:
                 - "storage:full-access:STORAGE_LOCATION_BASE"
+                - "db:full-table-access:${datalake_name}-table"
 storage:
     STORAGE_LOCATION_BASE:
             # main data directory
@@ -36,12 +37,28 @@ storage:
     LOGS_BUCKET:
             # logs for fluentd usecases
             path: /${datalake_name}
-nosql:
-    TABLE_NAME: ${datalake_name}
-permission_weights:
+permissions:
     storage:
-        full-access: 1
-        full-object-access: 2
-        read-write: 3
-        read-only: 4
-        list-only: 5
+        full-access:
+            rank: 1
+            description: the force
+        full-object-access:
+            rank: 2
+            description: jedi master
+        read-write:
+            rank: 3
+            description: jedi knight
+        read-only:
+            rank: 4
+            description: padawan
+        list-only:
+            rank: 5
+            description: youngling
+    sts:
+        assume-roles:
+            rank: 1
+            description: shapeshifter
+    db:
+        full-table-access:
+            rank: 1
+            description: dba

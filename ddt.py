@@ -137,6 +137,17 @@ class App(cmd2.Cmd):
         factory = CloudFactory.instance(self, cloudname)
         factory.build(self.ddf)
 
+    @cmd2.with_argparser(build_parser)
+    def do_push_datalake(self, args):
+        if (args.name is not None):
+            self.datalakename = args.name
+        self.internal_load_datalake(self.datalakename)
+        cloudname = args.cloud
+
+        # build the artifacts
+        factory = CloudFactory.instance(self, cloudname)
+        factory.push(self.ddf)
+
 sys.path.insert(1, 'aws')
 sys.path.insert(2, 'azure')
 sys.path.insert(3, 'gcp')
@@ -155,6 +166,13 @@ class CloudFactory:
         print("Cloud Type: {}".format(cloud))
         print("Vendor: {}".format(cloud.vendor()))
         cloud.build(ddf)
+
+    def push(self, ddf):
+        """Pushes IAM artifacts for cloud using the abstract factory"""
+        cloud = self.cloud_factory()
+        print("Cloud Type: {}".format(cloud))
+        print("Vendor: {}".format(cloud.vendor()))
+        cloud.push(ddf)
 
     @staticmethod
     def instance(self, cloudname):
