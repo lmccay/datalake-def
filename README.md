@@ -137,3 +137,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
              assume-roles:
                  rank: 1
                  description: shapeshifter
+         db:
+             full-table-access:
+                 rank: 1
+                 description: dba
