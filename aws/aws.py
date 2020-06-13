@@ -116,7 +116,7 @@ class AWSFactory:
         response = iam.get_role (RoleName=idbrole['iam_role'])
         idb_arn = response['Role']['Arn']
 
-        time.sleep(10)
+        time.sleep(7)
 
         for name,role in ddf['datalake_roles'].items():
             # TODO determine the trusted roles up front and check the list rather than hardcode IDBROKER_ROLE
@@ -170,8 +170,8 @@ class AWSFactory:
                          PolicyDocument=policy)
                     print(response)
 
-                    # TODO: attach each policy to the corresponding role
-                    time.sleep(10)
+                    # attach each policy to the corresponding role
+                    time.sleep(5)
                     response = iam.attach_role_policy(
                         RoleName=role_name, PolicyArn=response['Policy']['Arn'])
 
