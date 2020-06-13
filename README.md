@@ -10,12 +10,8 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 ## Installation
 
 1. Clone this project to your local machine
-2. Install Cmd2 python module (added initial setup.py - try it!)
+2. Install python modules needed by app
 
-        pip install -U cmd2
-     
-             or try new
-          
         python setup.py install
 
 3. cd datalake-def
