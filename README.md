@@ -103,6 +103,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
                  iam_role: cdp-ljm-admin-s3-role
                  permissions:
                      - "storage:full-access:STORAGE_LOCATION_BASE"
+                     - "db:full-table-access:ljm-table"
      storage:
          STORAGE_LOCATION_BASE:
                  # main data directory
@@ -119,8 +120,6 @@ Your datalake definitions may also be commited to SCM systems to share them and 
          LOGS_BUCKET:
                  # logs for fluentd usecases
                  path: /ljm
-     nosql:
-         TABLE_NAME: ljm
      permissions:
          storage:
              full-access:
