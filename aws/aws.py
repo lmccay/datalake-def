@@ -1,4 +1,4 @@
-import os, boto3, sys, json, time
+import os, boto3, sys, json, time, botocore
 
 class AWSFactory:
     def vendor(self):
@@ -86,8 +86,20 @@ class AWSFactory:
                 i = i + 1
 
     def push(self, ddf):
+        if self.check_bucket_paths(ddf) is True:
+            self.create_iam_entities(ddf)
+            self.create_bucket_paths(ddf)
+        else:
+            # TODO perhaps provide ability to get past this with something like:
+            #      1. add number to end of existing names and recheck until unique
+            #      2. ask user for a replacement bucket name
+            print('Bucket already exists check your configured paths. Cannot push to cloud.')
+
+    def create_iam_entities(self, ddf):
         # Create IAM client
         iam = boto3.client('iam')
+
+        # create iam entities
 
         # TODO determine the trusted roles up front and create them all rather than hardcode IDBROKER_ROLE
         # let's create IDBROKER_ROLE first as it is needed to create other roles with trust relationship
@@ -116,7 +128,7 @@ class AWSFactory:
         response = iam.get_role (RoleName=idbrole['iam_role'])
         idb_arn = response['Role']['Arn']
 
-        time.sleep(7)
+        time.sleep(10)
 
         for name,role in ddf['datalake_roles'].items():
             # TODO determine the trusted roles up front and check the list rather than hardcode IDBROKER_ROLE
@@ -131,7 +143,7 @@ class AWSFactory:
                 # get role name
                 role_name = role['iam_role']
 
-                # TODO get the arn for the datalake_role trusted by this role rather than hardcode for idbroker_role
+                # get the arn for the datalake_role trusted by this role rather than hardcode for idbroker_role
                 # create role with trust policy document
                 assume_role_policy_document2 = json.dumps({
                     "Version": "2012-10-17",
@@ -178,6 +190,62 @@ class AWSFactory:
                     print(response)
                     count = count + 1
                     suffix = '-' + str(count)
+
+    def check_bucket_paths(self, ddf):
+        # check storage locations for existing buckets which will prevent push
+        for name,storage in ddf['storage'].items():
+            bucket_path=storage['path']
+            dirs = bucket_path[1:].split('/')
+            print('dirs: ' + str(dirs))
+            if (self.exists(dirs[0]) is True):
+                # TODO allow user to indicate that the existing bucket
+                # is intended and then skip trying to create it.
+                return False
+
+    def create_bucket_paths(self, ddf):
+        # create storage locations
+        # create buckets based on storage paths in DDF
+        for name,storage in ddf['storage'].items():
+            bucket_path=storage['path']
+            dirs = bucket_path[1:].split('/')
+            print('dirs: ' + str(dirs))
+            if (self.exists(dirs[0]) is False):
+                self.create_bucket(dirs[0])
+            if len(dirs) > 1:
+                path = bucket_path[len(dirs[0]) + 1:]
+                self.create_folders(dirs[0], path)
+
+    def create_folders(self, bucket, path):
+        # this is a folder creation inside the bucket
+        # parse bucket name from the first path element and folder path from the remaining
+        # create s3 client
+        print('creating path: ' + path + 'within bucket: ' + bucket)
+        s3 = boto3.client('s3')
+        s3.put_object(Bucket=bucket, Key=(path+'/'))
+        print('created path: ' + path + 'within bucket: ' + bucket)
+
+    def create_bucket(self, bucket):
+        print('creating bucket: ' + bucket)
+        # create s3 client
+        s3 = boto3.client('s3')
+        s3.create_bucket(Bucket=bucket)
+        print('created bucket: ' + bucket)
+
+    def exists(self, bucket_name):
+        print('bucket name: ' + bucket_name)
+        # create s3 client
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(bucket_name)
+        exists = True
+        try:
+            s3.meta.client.head_bucket(Bucket=bucket_name)
+        except botocore.exceptions.ClientError as e:
+            # If a client error is thrown, then check that it was a 404 error.
+            # If it was a 404 error, then the bucket does not exist.
+            error_code = e.response['Error']['Code']
+            if error_code == '404':
+                exists = False
+        return exists
 
     def __str__(self):
         return "AWS"
