@@ -22,7 +22,7 @@ class App(cmd2.Cmd):
     role_parser.add_argument('-iam', '--iamrole', type=str, help='Cloud Vendor IAM role')
     role_parser.add_argument('-i', '--instanceprofile', action='store_true', help='VM attached role?')
     role_parser.add_argument('-p', '--permissions', type=str, help='Permissions for Cloud Services')
-
+	
     @cmd2.with_argparser(role_parser)
     def do_add_role(self, args):
         """Add a DataLake Role to the Definition."""
@@ -148,6 +148,17 @@ class App(cmd2.Cmd):
         factory = CloudFactory.instance(self, cloudname)
         factory.push(self.ddf)
 
+    @cmd2.with_argparser(build_parser)
+    def do_recall_datalake(self, args):
+        if (args.name is not None):
+            self.datalakename = args.name
+        self.internal_load_datalake(self.datalakename)
+        cloudname = args.cloud
+
+        # build the artifacts
+        factory = CloudFactory.instance(self, cloudname)
+        factory.recall(self.ddf)
+
 sys.path.insert(1, 'aws')
 sys.path.insert(2, 'azure')
 sys.path.insert(3, 'gcp')
@@ -173,6 +184,13 @@ class CloudFactory:
         print("Cloud Type: {}".format(cloud))
         print("Vendor: {}".format(cloud.vendor()))
         cloud.push(ddf)
+
+    def recall(self, ddf):
+        """Recalls IAM artifacts for cloud using the abstract factory"""
+        cloud = self.cloud_factory()
+        print("Cloud Type: {}".format(cloud))
+        print("Vendor: {}".format(cloud.vendor()))
+        cloud.recall(ddf)
 
     @staticmethod
     def instance(self, cloudname):
