@@ -17,7 +17,34 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 3. cd datalake-def
 4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
 
-
+## Commands
+     ddt> lmccay@strange:~/Projects/datalake-def$ ./ddt.py 
+     ddt> help -v
+     
+     Documented commands (use 'help -v' for verbose/'help <topic>' for details):
+     ================================================================================
+     add_path            Add a Storage Path to the Definition.
+     add_role            Add a DataLake Role to the Definition.
+     alias               Manage aliases
+     build_datalake      Build IAM artifacts for given vendor from the DataLake DDF.
+     edit                Run a text editor and optionally open a file with it
+     help                List available commands or provide detailed help for a specific command
+     history             View, run, edit, save, or clear previously entered commands
+     load_datalake       Load a DataLake from persisted DDF.
+     macro               Manage macros
+     new_datalake        Create a new DataLake DDF.
+     paths               List all Storage paths in the Definition.
+     push_datalake       Publish IAM artifacts and buckets to given vendor.
+     py                  Invoke Python command or shell
+     quit                Exit this application
+     recall_datalake     Unpublish IAM artifacts and buckets from given vendor.
+     roles               List all DataLake Roles in the Definition.
+     run_pyscript        Run a Python script file inside the console
+     run_script          Run commands in script file that is encoded as either ASCII or UTF-8 text
+     save_datalake       Persist a DataLake DDF.
+     set                 Set a settable parameter or show current settings of parameters
+     shell               Execute a command as if at the OS prompt
+     shortcuts           List available shortcuts
 
 ## Example use:
      lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
