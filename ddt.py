@@ -40,9 +40,8 @@ class App(cmd2.Cmd):
         roles[args.role] = newrole
         print(self.ddf)
 
-    @cmd2.with_argparser(role_parser)
     def do_roles(self, args):
-        """Add a DataLake Role to the Definition."""
+        """List all DataLake Roles in the Definition."""
         for name,role in self.ddf['datalake_roles'].items():
             instanceProfile = False
             if "instance_profile" in role:
@@ -62,17 +61,17 @@ class App(cmd2.Cmd):
         paths[args.name] = path
         print(args.name + ' added')
 
-    @cmd2.with_argparser(path_parser)
     def do_paths(self, args):
-        """Add a DataLake Role to the Definition."""
+        """List all Storage paths in the Definition."""
         for name,path in self.ddf['storage'].items():
             print(name + ', path=' + str(path['path']))
 
-    datalake_parser = argparse.ArgumentParser()
-    datalake_parser.add_argument('-n', '--name', type=str, help='Datalake name')
+    load_datalake_parser = argparse.ArgumentParser()
+    load_datalake_parser.add_argument('-n', '--name', type=str, help='Datalake name')
 
-    @cmd2.with_argparser(datalake_parser)
+    @cmd2.with_argparser(load_datalake_parser)
     def do_load_datalake(self, args):
+        """Load a DataLake from persisted DDF."""
         self.datalakename = args.name
         self.internal_load_datalake(self.datalakename)
 
@@ -80,8 +79,12 @@ class App(cmd2.Cmd):
         ddf = open('datalakes/' + datalakename + '/ddf.yaml')
         self.ddf = yaml.load(ddf)
 
-    @cmd2.with_argparser(datalake_parser)
+    save_datalake_parser = argparse.ArgumentParser()
+    save_datalake_parser.add_argument('-n', '--name', type=str, help='Datalake name')
+
+    @cmd2.with_argparser(save_datalake_parser)
     def do_save_datalake(self, args):
+        """Persist a DataLake DDF."""
         if(args.name is not None):
             self.datalakename = args.name
 
@@ -93,8 +96,12 @@ class App(cmd2.Cmd):
         with open('datalakes/' + self.datalakename + '/ddf.yaml', 'w') as writer:
             writer.write(yaml.dump(self.ddf))
 
-    @cmd2.with_argparser(datalake_parser)
+    new_datalake_parser = argparse.ArgumentParser()
+    new_datalake_parser.add_argument('-n', '--name', type=str, help='Datalake name')
+
+    @cmd2.with_argparser(new_datalake_parser)
     def do_new_datalake(self, args):
+        """Create a new DataLake DDF."""
         self.datalakename = args.name;
 
         if not os.path.exists('datalakes/' + self.datalakename):
@@ -123,6 +130,7 @@ class App(cmd2.Cmd):
 
     @cmd2.with_argparser(build_parser)
     def do_build_datalake(self, args):
+        """Build IAM artifacts for given vendor from the DataLake DDF."""
         if (args.name is not None):
             self.datalakename = args.name
         self.internal_load_datalake(self.datalakename)
@@ -137,8 +145,13 @@ class App(cmd2.Cmd):
         factory = CloudFactory.instance(self, cloudname)
         factory.build(self.ddf)
 
-    @cmd2.with_argparser(build_parser)
+    push_parser = argparse.ArgumentParser()
+    push_parser.add_argument('-n', '--name', type=str, help='Datalake name')
+    push_parser.add_argument('-c', '--cloud', type=str, help='Cloud vendor name: AWS|Azure|GCP')
+
+    @cmd2.with_argparser(push_parser)
     def do_push_datalake(self, args):
+        """Publish IAM artifacts and buckets to given vendor."""
         if (args.name is not None):
             self.datalakename = args.name
         self.internal_load_datalake(self.datalakename)
@@ -148,8 +161,13 @@ class App(cmd2.Cmd):
         factory = CloudFactory.instance(self, cloudname)
         factory.push(self.ddf)
 
-    @cmd2.with_argparser(build_parser)
+    recall_parser = argparse.ArgumentParser()
+    recall_parser.add_argument('-n', '--name', type=str, help='Datalake name')
+    recall_parser.add_argument('-c', '--cloud', type=str, help='Cloud vendor name: AWS|Azure|GCP')
+
+    @cmd2.with_argparser(recall_parser)
     def do_recall_datalake(self, args):
+        """Unpublish IAM artifacts and buckets from given vendor."""
         if (args.name is not None):
             self.datalakename = args.name
         self.internal_load_datalake(self.datalakename)

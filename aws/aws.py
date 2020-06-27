@@ -277,7 +277,7 @@ class AWSFactory:
             # get role name
             role_name = role['iam_role']
 
-            # TODO detach all policies before deleting role
+            # detach all policies before deleting role
             iam_resource = boto3.resource('iam')
             r = iam_resource.Role(role_name)
             policies = r.attached_policies.all()
