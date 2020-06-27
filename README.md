@@ -17,6 +17,8 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 3. cd datalake-def
 4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
 
+
+
 ## Example use:
      lmccay@strange:~/Projects/datalake-def$ ./ddt.py "set debug true" "new_datalake -n ljm" "build_datalake -c AWS" quit
      debug - was: False
