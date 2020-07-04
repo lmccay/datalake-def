@@ -73,7 +73,6 @@ class App(cmd2.Cmd):
         perm['description'] = args.description
         perm['rank'] = args.rank
         type[args.permission] = perm
-        perm.append(args.permission)
 
     def do_permissions(self, args):
         """List all Permissions in the Definition."""
@@ -157,6 +156,10 @@ class App(cmd2.Cmd):
         # load the new ddf
         self.internal_load_datalake(self.datalakename)
         #self.do_load_datalake(args)
+        print(yaml.dump(self.ddf))
+
+    def do_display(self, args):
+        """Display the DataLake Definition on screen."""
         print(yaml.dump(self.ddf))
 
     build_parser = argparse.ArgumentParser()
