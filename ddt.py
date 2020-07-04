@@ -48,6 +48,17 @@ class App(cmd2.Cmd):
                 instanceProfile = role['instance_profile']
             print(name + ', iamRole=' + role['iam_role'] + ', instanceProfile=' + str(instanceProfile) + ', permissions=' + str(role['permissions']))
 
+    role_perm_parser = argparse.ArgumentParser()
+    role_perm_parser.add_argument('-r', '--role', type=str, help='Datalake role')
+    role_perm_parser.add_argument('-p', '--permission', help='Permissions string {type:perm:target-name} ie. storage:read-write:LOGPATH')
+
+    @cmd2.with_argparser(role_perm_parser)
+    def do_add_role_perm(self, args):
+        """Add a Permission to the DataLake Role."""
+        role = self.ddf["datalake_roles"][args.role]
+        perms = role["permissions"]
+        perms.append(args.permission)
+
     path_parser = argparse.ArgumentParser()
     path_parser.add_argument('-n', '--name', type=str, help='Storage path name')
     path_parser.add_argument('-p', '--path', type=str, help='Cloud storage path')
