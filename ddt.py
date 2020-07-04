@@ -54,10 +54,34 @@ class App(cmd2.Cmd):
 
     @cmd2.with_argparser(role_perm_parser)
     def do_add_role_perm(self, args):
-        """Add a Permission to the DataLake Role."""
+        """Add a Permission to a DataLake Role."""
         role = self.ddf["datalake_roles"][args.role]
         perms = role["permissions"]
         perms.append(args.permission)
+
+    perm_parser = argparse.ArgumentParser()
+    perm_parser.add_argument('-t', '--type', type=str, help='Type (storage|sts|db)')
+    perm_parser.add_argument('-p', '--permission', help='Permissions string ie. read-write')
+    perm_parser.add_argument('-d', '--description', help='Short description')
+    perm_parser.add_argument('-r', '--rank', help='Rank in strength - lowest rank = highest strength')
+
+    @cmd2.with_argparser(perm_parser)
+    def do_add_permission(self, args):
+        """Add a Permission to the DataLake Definition."""
+        type = self.ddf['permissions'][args.type]
+        perm = {}
+        perm['description'] = args.description
+        perm['rank'] = args.rank
+        type[args.permission] = perm
+        perm.append(args.permission)
+
+    def do_permissions(self, args):
+        """List all Permissions in the Definition."""
+        for name,perm_type in self.ddf['permissions'].items():
+          print('Permissions of type: ' + name + ':')
+          for name,perm in perm_type.items():
+              print('   ' + name + ': desc=' + perm['description'] + ', rank=' + str(perm['rank']))
+          print('')
 
     path_parser = argparse.ArgumentParser()
     path_parser.add_argument('-n', '--name', type=str, help='Storage path name')
