@@ -44,7 +44,7 @@ storage:
             path: /${datalake_name}
     ALL_LOCATIONS:
             description: wildcard resource locations
-            path: "/*"
+            path: '*'
 permissions:
     storage:
         full-access:

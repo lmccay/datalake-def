@@ -204,13 +204,14 @@ class AWSFactory:
         # check storage locations for existing buckets which will prevent push
         for name,storage in ddf['storage'].items():
             bucket_path=storage['path']
-            dirs = bucket_path[1:].split('/')
-            print('dirs: ' + str(dirs))
-            print('bucket_name: ' + dirs[0])
-            if (self.exists(dirs[0]) is True):
-                # TODO allow user to indicate that the existing bucket
-                # is intended and then skip trying to create it.
-                return False
+            if (bucket_path != '*'):
+                dirs = bucket_path[1:].split('/')
+                print('dirs: ' + str(dirs))
+                print('bucket_name: ' + dirs[0])
+                if (self.exists(dirs[0]) is True):
+                    # TODO allow user to indicate that the existing bucket
+                    # is intended and then skip trying to create it.
+                    return False
             return True
 
     def create_bucket_paths(self, ddf):
@@ -302,10 +303,11 @@ class AWSFactory:
         # create buckets based on storage paths in DDF
         for name,storage in ddf['storage'].items():
             bucket_path=storage['path']
-            dirs = bucket_path[1:].split('/')
-            print('dirs: ' + str(dirs))
-            if (self.exists(dirs[0]) is True):
-                self.delete_bucket(dirs[0])
+            if (bucket_path is not '*'):
+                dirs = bucket_path[1:].split('/')
+                print('dirs: ' + str(dirs))
+                if (self.exists(dirs[0]) is True):
+                    self.delete_bucket(dirs[0])
 
     def delete_bucket(self, bucket):
         print('deleting bucket: ' + bucket)

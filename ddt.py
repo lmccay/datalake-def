@@ -84,6 +84,7 @@ class App(cmd2.Cmd):
 
     path_parser = argparse.ArgumentParser()
     path_parser.add_argument('-n', '--name', type=str, help='Storage path name')
+    path_parser.add_argument('-d', '--description', type=str, help='Description for the specific path')
     path_parser.add_argument('-p', '--path', type=str, help='Cloud storage path')
 
     @cmd2.with_argparser(path_parser)
@@ -93,6 +94,8 @@ class App(cmd2.Cmd):
         path = {}
         path['path'] = args.path
         paths[args.name] = path
+        if (args.description):
+          path['description'] = args.description
         print(args.name + ' added')
 
     def do_paths(self, args):
