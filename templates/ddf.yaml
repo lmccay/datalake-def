@@ -17,29 +17,34 @@ datalake_roles:
             trust: IDBROKER_ROLE
             permissions:
                 - "storage:full-object-access:RANGER_AUDIT_LOCATION"
-                - "storage:list-only:DATALAKE_BUCKET"
+                - "storage:read-only:DATALAKE_BUCKET"
+                - "storage:execute:ALL_LOCATIONS"
     DATALAKE_ADMIN_ROLE:
             iam_role: cdp-${datalake_name}-admin-s3-role
             trust: IDBROKER_ROLE
             permissions:
                 - "storage:full-access:STORAGE_LOCATION_BASE"
+                - "storage:execute:ALL_LOCATIONS"
                 - "db:full-table-access:${datalake_name}-table"
 storage:
     STORAGE_LOCATION_BASE:
-            # main data directory
+            description: data directory
             path: /${datalake_name}
     DATALAKE_BUCKET:
-            # main data directory
+            description: main data directory
             path: /${datalake_name}/data
     RANGER_AUDIT_LOCATION:
-            # ranger audit logs
+            description: ranger audit logs
             path: /${datalake_name}/ranger/audit
     LOGS_LOCATION_BASE:
-            # logs for fluentd usecases
+            description: logs for fluentd usecases
             path: /${datalake_name}/logs
     LOGS_BUCKET:
-            # logs for fluentd usecases
+            description: logs for fluentd usecases
             path: /${datalake_name}
+    ALL_LOCATIONS:
+            description: wildcard resource locations
+            path: "/*"
 permissions:
     storage:
         full-access:
@@ -51,12 +56,15 @@ permissions:
         read-write:
             rank: 3
             description: jedi knight
-        read-only:
+        execute:
             rank: 4
             description: padawan
-        list-only:
+        read-only:
             rank: 5
-            description: youngling
+            description: youngling 
+        list-only:
+            rank: 6 
+            description: hmmmm 
     sts:
         assume-roles:
             rank: 1

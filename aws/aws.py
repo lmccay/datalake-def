@@ -217,14 +217,16 @@ class AWSFactory:
         # create storage locations
         # create buckets based on storage paths in DDF
         for name,storage in ddf['storage'].items():
-            bucket_path=storage['path']
-            dirs = bucket_path[1:].split('/')
-            print('dirs: ' + str(dirs))
-            if (self.exists(dirs[0]) is False):
-                self.create_bucket(dirs[0])
-            if len(dirs) > 1:
-                path = bucket_path[len(dirs[0]) + 2:]
-                self.create_folders(dirs[0], path)
+            bucket_path = storage['path']
+            print('bucket_path: ' + bucket_path)
+            if (bucket_path != '*'):
+                dirs = bucket_path[1:].split('/')
+                print('dirs: ' + str(dirs))
+                if (self.exists(dirs[0]) is False):
+                    self.create_bucket(dirs[0])
+                if len(dirs) > 1:
+                    path = bucket_path[len(dirs[0]) + 2:]
+                    self.create_folders(dirs[0], path)
 
     def create_folders(self, bucket, path):
         # this is a folder creation inside the bucket
