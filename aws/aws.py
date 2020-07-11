@@ -22,6 +22,7 @@ class AWSFactory:
 
             permissions = role['permissions']
             i = 0
+            print('The datalake role: ' + name + ' is assigned the iam role: ' + role['iam_role'] + '\n' + '    which has been granted: ')
             for perm in permissions:
                 #print(perm)
                 elements = perm.split(':')
@@ -44,8 +45,7 @@ class AWSFactory:
                         # open output file
                         with open('datalakes/' + datalakename + '/AWS/' + role['iam_role'] + '-policy' + suffix + '.json', 'w') as writer:
                             writer.write(t)
-                        print('The datalake role: ' + name + ' is assigned the iam role: ' + 
-                              role['iam_role'] + ' which has been granted: ' + perm_name + 
+                        print('        ' + perm_name + 
                               ' for path: ' + d['storage_location'])
                     else:
                         print('Unknown permissions element: ' + elements[1] + ' check permissions in ddf file')
@@ -61,8 +61,7 @@ class AWSFactory:
                         # open output file
                         with open('datalakes/' + datalakename + '/AWS/' + role['iam_role'] + '-policy' + suffix + '.json', 'w') as writer:
                             writer.write(t)
-                        print('The datalake role: ' + name + ' is assigned the iam role: ' + 
-                              role['iam_role'] + ' which has been granted: assumeRoles')
+                        print('        assumeRoles')
                 elif elements[0] == 'db':
                     filepath = 'templates/aws/full-table-access.json'
                     if os.path.exists(filepath):
@@ -81,8 +80,7 @@ class AWSFactory:
                         # open output file
                         with open('datalakes/' + datalakename + '/AWS/' + role['iam_role'] + '-policy' + suffix + '.json', 'w') as writer:
                             writer.write(t)
-                        print('The datalake role: ' + name + ' is assigned the iam role: ' + 
-                              role['iam_role'] + ' which has been granted: full-table-access to table:' + elements[2])
+                        print('        full-table-access to table:' + elements[2])
                 i = i + 1
 
     def push(self, ddf):
