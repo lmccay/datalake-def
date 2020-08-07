@@ -1,0 +1,19 @@
+{
+  "Name": "CDP Custom Storage Delete-Read-Write Role",
+  "IsCustom": true,
+  "Description": "Custom Role with delete, read and write permissions on a container.",
+  "Actions": [
+    "Microsoft.Storage/storageAccounts/blobServices/containers/read",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/write"
+  ],
+  "NotActions": [
+
+  ],
+  "DataActions":[
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write"
+  ],
+  "AssignableScopes": [
+    "subscriptions/${subscription_id}"
+  ]
+}

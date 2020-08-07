@@ -1,0 +1,18 @@
+{
+  "Name": "CDP Custom Storage Write Role",
+  "IsCustom": true,
+  "Description": "Custom Role with write permissions on a bucket used for logging and telemetry.",
+  "Actions": [
+    "Microsoft.Storage/storageAccounts/blobServices/write",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/write"
+  ],
+  "NotActions": [
+
+  ],
+  "DataActions":[
+     "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write"
+  ],
+  "AssignableScopes": [
+    "subscriptions/${subscription_id}"
+  ]
+}

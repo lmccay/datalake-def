@@ -22,7 +22,7 @@ VERSION = '0.1.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'cmd2', 'boto3'
+    'cmd2', 'boto3', 'azure-mgmt-resource==3.0.0', 'azure-mgmt-msi==1.0.0', 'azure-mgmt-authorization==0.50.0', 'azure-mgmt-storage==16.0.0b2', 'azure-storage-file-datalake==12.1.0b1', 'azure-identity==1.4.0b7'
 ]
 
 # What packages are optional?

@@ -139,13 +139,13 @@ class App(cmd2.Cmd):
     @cmd2.with_argparser(new_datalake_parser)
     def do_new_datalake(self, args):
         """Create a new DataLake DDF."""
-        self.datalakename = args.name;
+        self.datalakename = args.name
 
         if not os.path.exists('datalakes/' + self.datalakename):
             os.makedirs('datalakes/' + self.datalakename)
 
         from string import Template
- 
+
         # open template file
         d = dict(datalake_name=self.datalakename)
         with open('templates/ddf.yaml', 'r') as reader:
@@ -219,9 +219,9 @@ class App(cmd2.Cmd):
         factory.recall(self.ddf)
 
 sys.path.insert(1, 'aws')
-sys.path.insert(2, 'azure')
+sys.path.insert(2, 'az')
 sys.path.insert(3, 'gcp')
-import aws, azure, gcp
+import aws, az, gcp
 
 class CloudFactory:
     """A cloud factory"""
@@ -257,7 +257,7 @@ class CloudFactory:
             from aws import AWSFactory
             factory = CloudFactory(AWSFactory)
         elif (cloudname == "Azure"):
-            from azure import AzureFactory
+            from az import AzureFactory
             factory = CloudFactory(AzureFactory)
         elif (cloudname == "GCP"):
             from gcp import GCPFactory

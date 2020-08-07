@@ -1,0 +1,17 @@
+{
+  "Name": "CDP Custom Storage Read Role",
+  "IsCustom": true,
+  "Description": "Custom Role with Read only permissions on a container.",
+  "Actions": [
+    "Microsoft.Storage/storageAccounts/blobServices/containers/read"
+  ],
+  "NotActions": [
+
+  ],
+  "DataActions":[
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read"
+  ],
+  "AssignableScopes": [
+    "subscriptions/${subscription_id}"
+  ]
+}
