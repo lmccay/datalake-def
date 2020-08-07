@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateJob",
+        "s3:GetAccountPublicAccessBlock",
+        "s3:HeadBucket",
+        "s3:ListJobs"
+      ],
+      "Resource": "${storage_location}"
+    }
+  ]
+}
