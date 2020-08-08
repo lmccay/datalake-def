@@ -302,7 +302,7 @@ class AzureFactory:
         self.create_resource_group()
 
         try:
-            if user_assigned_identity := self.msi_client.user_assigned_identities.get(self.resource_group,
+            if user_assigned_identity == self.msi_client.user_assigned_identities.get(self.resource_group,
                                                                                       identity,
                                                                                       # Any name, just a human readable ID
                                                                                       custom_headers=None):
