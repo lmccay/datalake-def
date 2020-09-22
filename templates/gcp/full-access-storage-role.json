@@ -1,0 +1,18 @@
+{
+  "roleId": "full-access-storage-role",
+  "role": {
+    "description": "Full access storage role",
+    "includedPermissions": [
+      "storage.buckets.list",
+      "storage.buckets.create",
+      "storage.buckets.get",
+      "storage.buckets.update",
+      "storage.buckets.delete",
+      "storage.objects.list",
+      "storage.objects.create",
+      "storage.objects.get",
+      "storage.objects.update",
+      "storage.objects.delete"
+    ]
+  }
+}

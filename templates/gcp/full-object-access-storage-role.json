@@ -1,0 +1,13 @@
+{
+  "roleId": "full-object-access-storage-role",
+  "role": {
+    "description": "Full object access storage role",
+    "includedPermissions": [
+      "storage.objects.list",
+      "storage.objects.create",
+      "storage.objects.get",
+      "storage.objects.update",
+      "storage.objects.delete"
+    ]
+  }
+}

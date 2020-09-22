@@ -1,0 +1,14 @@
+{
+  "roleId": "read-write-storage-role",
+  "role": {
+    "description": "Read-write storage role",
+    "includedPermissions": [
+      "storage.buckets.create",
+      "storage.buckets.get",
+      "storage.buckets.update",
+      "storage.objects.create",
+      "storage.objects.get",
+      "storage.objects.update",
+    ]
+  }
+}

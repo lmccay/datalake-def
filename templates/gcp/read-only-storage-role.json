@@ -1,0 +1,11 @@
+{
+  "roleId": "read-only-storage-role",
+  "role": {
+    "description": "Read-only storage role",
+    "includedPermissions": [
+      "storage.buckets.get",
+      "storage.buckets.list",
+      "storage.objects.get"
+    ]
+  }
+}

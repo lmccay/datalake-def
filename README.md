@@ -98,7 +98,7 @@ Your datalake definitions may also be commited to SCM systems to share them and 
      lmccay@strange:~/Projects/datalake-def$ ls datalakes/ljm/
      AWS/      ddf.yaml  
 
-## Generated AWS Policy Aritfacts:
+## Generated AWS Policy Artifacts:
 
      lmccay@strange:~/Projects/datalake-def$ ls datalakes/ljm/AWS/
      cdp-ljm-admin-s3-role-policy.json  cdp-ljm-idbroker-assume-role-policy.json  cdp-ljm-log-role-policy.json  cdp-ljm-ranger-audit-s3-role-policy1.json  cdp-ljm-ranger-audit-s3-role-policy.json

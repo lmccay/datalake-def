@@ -114,7 +114,7 @@ class App(cmd2.Cmd):
 
     def internal_load_datalake(self, datalakename):
         ddf = open('datalakes/' + datalakename + '/ddf.yaml')
-        self.ddf = yaml.load(ddf)
+        self.ddf = yaml.safe_load(ddf)
 
     save_datalake_parser = argparse.ArgumentParser()
     save_datalake_parser.add_argument('-n', '--name', type=str, help='Datalake name')
