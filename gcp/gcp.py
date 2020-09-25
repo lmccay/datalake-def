@@ -6,17 +6,37 @@ from googleapiclient.errors import HttpError
 
 class GCPFactory:
 
+    service_account_info = None
+
+    project_id = None
+
+    credentials = None
+
+
     def __str__(self):
         return "GCP"
 
     def vendor(self):
         return "Google"
 
+    def get_auth_config(self):
+        if (self.service_account_info is None):
+            filename = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+            if (filename is not None):
+                self.service_account_info = json.load(open(filename))
+        return self.service_account_info
+
     def get_project_id(self, ddf):
-        return ddf['datalake']
+        if (self.project_id is None):
+            service_account_info = self.get_auth_config()
+            self.project_id = service_account_info['project_id']
+            print('Project: ' + self.project_id)
+        return self.project_id
 
     def get_credentials(self):
-        return service_account.Credentials.from_service_account_file(filename=os.environ['GOOGLE_APPLICATION_CREDENTIALS'])
+        if (self.credentials is None):
+            self.credentials = service_account.Credentials.from_service_account_info(self.get_auth_config())
+        return self.credentials
 
     def get_iam_client(self):
         return googleapiclient.discovery.build('iam', 'v1', credentials=self.get_credentials())
