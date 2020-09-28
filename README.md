@@ -181,34 +181,140 @@ Following steps describe a way to set up and run scripts for Azure.
 
 ## Environment Setup
 * Sign-in to Azure account
-    ```
-    az login
-    ```
+
+        az login
+
 * Create Service Principal (if not already created) - make sure the SP has Owner role at subscription level
-    ```
-    az ad sp create-for-rbac --name KnoxSP --password knox-password > local-sp.json
-    ```
+
+        az ad sp create-for-rbac --name KnoxSP --password knox-password > local-sp.json
+
    NOTE: If you explicitly want to set permissions use the option ``--skip-assignment`` and assign Owner permissions at subscription level later.
    NOTE: Service Principal should have Owner permissions at subscription level
 * Get subscription id
-    ```
-      az account show 
-    ```
+
+        az account show 
+
 * Setup environemnt variables (update values as necessarily) - Required
-    ```
-    AZURE_SUBSCRIPTION_ID="aa11bb33-cc77-dd88-ee99-0918273645aa"
-    AZURE_TENANT_ID="00112233-7777-8888-9999-aabbccddeeff"
-    AZURE_CLIENT_ID="12345678-1111-2222-3333-1234567890ab"
-    AZURE_CLIENT_SECRET="abcdef00-4444-5555-6666-1234567890ab"
-    ```
+
+        AZURE_SUBSCRIPTION_ID="aa11bb33-cc77-dd88-ee99-0918273645aa"
+        AZURE_TENANT_ID="00112233-7777-8888-9999-aabbccddeeff"
+        AZURE_CLIENT_ID="12345678-1111-2222-3333-1234567890ab"
+        AZURE_CLIENT_SECRET="abcdef00-4444-5555-6666-1234567890ab"
+
 * Setup environemnt variables (update values as necessarily) - Optional
-    ```
-    AZURE_RESOURCE_GROUP="myResourceGroup" #Resource group under which MSIs will be created, else default is <datalakename>RG
-    ```
+
+        AZURE_RESOURCE_GROUP="myResourceGroup" #Resource group under which MSIs will be created, else default is <datalakename>RG
+
 For more information see [Azure Configure Authentication](https://docs.microsoft.com/en-us/azure/developer/python/configure-local-development-environment?tabs=bash#configure-authentication) docs
 
 ## Examples
 * Create a default DDF 
-    ```
-    ddt.py "set debug true" "new_datalake -n srm" "build_datalake -c Azure" "push_datalake -c Azure" quit
-    ```
+
+        ddt.py "set debug true" "new_datalake -n srm" "build_datalake -c Azure" "push_datalake -c Azure" quit
+
+
+
+# Google Cloud Platform Setup
+Set up and run scripts for Google Cloud Platform (GCP).
+
+
+## Prerequisites
+* A Google Cloud Platform account with permissions associated with the following GCP roles:
+  * StorageAdmin (bucket/path creation/removal)
+  * ServiceAccountAdmin (service account creation/removal)
+  * SecurityAdmin (IAM policy attachment)
+
+
+## Environment Setup
+* Download the key file for the Google Cloud Platform account to be used by the Datalake Definition tool
+* Set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to that key file
+
+
+## Examples
+> N.B. Datalake names are translated into Google Cloud Storage bucket names, which must be __globally__ unique.
+>      Attempts to access buckets which don't belong to you will result in HTTP 403 errors, even though your
+>      permissions include the StorageAdmin role.
+
+* Create a Google Cloud Platform datalake definition
+
+		---
+		datalake: mydl
+		datalake_roles:
+		    IDBROKER_ROLE:
+		            iam_role: cdp-mydl-idbroker
+		            instance_profile: true
+		            permissions:
+		                - "iam:serviceAccountTokenCreator"
+		    LOG_ROLE:
+		            iam_role: cdp-mydl-log
+		            instance_profile: true
+		            trust: IDBROKER_ROLE
+		            permissions:
+		                - "storage:read-write-storage-role:LOGS_LOCATION_BASE"
+		    RANGER_AUDIT_ROLE:
+		            iam_role: cdp-mydl-ranger-audit
+		            trust: IDBROKER_ROLE
+		            permissions:
+		                - "storage:full-object-access-storage-role:RANGER_AUDIT_LOCATION"
+		                - "storage:read-only-storage-role:DATALAKE_BUCKET"
+		    DATALAKE_ADMIN_ROLE:
+		            iam_role: cdp-mydl-admin
+		            trust: IDBROKER_ROLE
+		            permissions:
+		                - "storage:full-access-storage-role:STORAGE_LOCATION_BASE"
+		storage:
+		    STORAGE_LOCATION_BASE:
+		            description: data directory
+		            path: /mydl
+		    DATALAKE_BUCKET:
+		            description: main data directory
+		            path: /mydl/data
+		    RANGER_AUDIT_LOCATION:
+		            description: ranger audit logs
+		            path: /mydl/ranger/audit
+		    LOGS_LOCATION_BASE:
+		            description: logs for fluentd usecases
+		            path: /mydl/logs
+		    LOGS_BUCKET:
+		            description: logs for fluentd usecases
+		            path: /mydl
+		    ALL_LOCATIONS:
+		            description: wildcard resource locations
+		            path: '*'
+		permissions:
+		    storage:
+		        full-access-storage-role:
+		            rank: 1
+		            description: the force
+		        full-object-access-storage-role:
+		            rank: 2
+		            description: jedi master
+		        read-write-storage-role:
+		            rank: 3
+		            description: jedi knight
+		        execute-storage-role:
+		            rank: 4
+		            description: padawan
+		        read-only-storage-role:
+		            rank: 5
+		            description: youngling 
+		        list-only-storage-role:
+		            rank: 6 
+		            description: hmmmm 
+		    iam:
+		        serviceAccountTokenCreator:
+		            rank: 1
+		            description: shapeshifter
+		    roles:
+		        token-creator:
+		            rank: 1
+		            description: shapeshifter
+
+* Push a Google Cloud Platform datalake definition
+
+        ddt.py "push_datalake -n mydl -c GCP" quit
+
+* Recall a Google Cloud Platform datalake definition
+
+        ddt.py "recall_datalake -n mydl -c GCP" quit
+

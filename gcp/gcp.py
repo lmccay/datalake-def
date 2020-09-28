@@ -137,6 +137,7 @@ class GCPFactory:
 
         # Trusted role service account email map
         trusted_role_email = dict()
+        trusted_role_permissions = dict()
 
         # Create the trusted roles
         for name,role in ddf['datalake_roles'].items():
@@ -156,6 +157,18 @@ class GCPFactory:
                     trusted_sa = self.create_service_account_for_role(ddf, name, trusted_iam_role , name + ' service account')
                     trusted_sa_email = trusted_sa['email']
                     trusted_role_email.update({name: trusted_sa_email})
+                    
+                    trusted_role_perm_decls = role.get('permissions')
+                    for perm_decl in trusted_role_perm_decls:
+                        decl_parts = perm_decl.split(":")
+                        perm_category = decl_parts[0]
+                        perm_role_name = decl_parts[1] 
+                        perm_role_list = trusted_role_permissions.get(perm_category)
+                        if (perm_role_list is None):
+                            perm_role_list = []
+                        perm_role_list.append(perm_role_name)
+                        trusted_role_permissions.update({perm_category: perm_role_list})
+                    print('Declared ' + trusted_role + ' permissions : ' + json.dumps(trusted_role_permissions))
 
 
         # Create service accounts for the remaining roles, and apply any associated policy
@@ -169,9 +182,7 @@ class GCPFactory:
                 for trusted_role,trusted_sa in trusted_role_email.items():
                     if (role.get('trust') == trusted_role):
                         print(name + ' trusts ' + trusted_role)
-                        # Currently, this is hard-coded to service account token creator
-                        # TODO: Determine the role(s) from the DDF permissions attached to the trusted role
-                        self.bind_trusted_as_tokencreator(ddf, trusted_sa, sa)
+                        self.bind_trusted_service_account_policy(ddf, trusted_sa, sa, trusted_role_permissions)
 
 
     def create_service_account_for_role(self, ddf, role, sa_name, sa_display_name):
@@ -188,7 +199,7 @@ class GCPFactory:
         return sa
         
 
-    def bind_trusted_as_tokencreator(self, ddf, trusted_sa_email, service_account):
+    def bind_trusted_service_account_policy(self, ddf, trusted_sa_email, service_account, trusted_role_permissions):
         iam = self.get_iam_client()
 
         sa_resource = 'projects/' + self.get_project_id(ddf) + '/serviceAccounts/' + service_account['email']
@@ -201,10 +212,12 @@ class GCPFactory:
             bindings = []
             policy.update({"bindings": bindings})
 
-        # TODO: Do we need to get the service account token creator role from the trusted role's permissions?
-        # Add the trusted servivce account as the service account token creator for the target service account
-        bindings.append({"role": "roles/iam.serviceAccountTokenCreator", "members": "serviceAccount:" + trusted_sa_email})
-        #print('Updated policy: ' + json.dumps(policy))
+        # Create binding(s) for the  trusted servivce account based on the policy declarations
+        for category in trusted_role_permissions.keys():
+            for role in trusted_role_permissions.get(category):
+                print('Preparing policy binding for roles/' + category + "." + role)
+                bindings.append({"role": "roles/" + category + "." + role, "members": "serviceAccount:" + trusted_sa_email})
+        print('Updated policy: ' + json.dumps(policy))
 
         # Push the updated service account policy
         iam.projects().serviceAccounts().setIamPolicy(resource=sa_resource,
@@ -218,8 +231,9 @@ class GCPFactory:
             if (bucket_path != '*'):
                 dirs = bucket_path[1:].split('/')
                 print('dirs: ' + str(dirs))
-                print('bucket_name: ' + dirs[0])
-                if (self.exists(dirs[0]) is True):
+                bucket_name = dirs[0]
+                print('bucket_name: ' + bucket_name)
+                if (self.bucket_exists(bucket_name) is True):
                     # TODO allow user to indicate that the existing bucket
                     # is intended and then skip trying to create it.
                     return False
@@ -234,7 +248,7 @@ class GCPFactory:
             if (bucket_path != '*'):
                 dirs = bucket_path[1:].split('/')
                 print('dirs: ' + str(dirs))
-                if (self.exists(dirs[0]) is False):
+                if (self.bucket_exists(dirs[0]) is False):
                     self.create_bucket(dirs[0])
                 if len(dirs) > 1:
                     path = bucket_path[len(dirs[0]) + 2:]
@@ -263,7 +277,7 @@ class GCPFactory:
             )
         )
 
-    def exists(self, bucket_name):
+    def bucket_exists(self, bucket_name):
         exists = True
         try:
             bucket = self.get_storage_client().get_bucket(bucket_name)
@@ -297,7 +311,7 @@ class GCPFactory:
             if (bucket_path != '*'):
                 dirs = bucket_path[1:].split('/')
 #                print('dirs: ' + str(dirs))
-                if (self.exists(dirs[0]) is True):
+                if (self.bucket_exists(dirs[0]) is True):
                     self.delete_bucket(dirs[0])
 
     def delete_bucket(self, bucket_name):
