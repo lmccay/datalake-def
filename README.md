@@ -10,11 +10,11 @@ Your datalake definitions may also be commited to SCM systems to share them and 
 ## Installation
 
 1. Clone this project to your local machine
-2. Install python modules needed by app
+2. cd datalake-def
+3. Install python modules needed by app
 
         python setup.py install
 
-3. cd datalake-def
 4. ../ddt.py "set debug true" "new_datalake --name {name}" "build_datalake \[--name {name}\] --cloud AWS" quit
 
 ## Commands
