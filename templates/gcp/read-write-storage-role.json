@@ -1,5 +1,5 @@
 {
-  "roleId": "read-write-storage-role",
+  "roleId": "${datalake_name}_read_write_storage_role",
   "role": {
     "description": "Read-write storage role",
     "includedPermissions": [
@@ -8,7 +8,8 @@
       "storage.buckets.update",
       "storage.objects.create",
       "storage.objects.get",
-      "storage.objects.update",
-    ]
+      "storage.objects.update"
+    ],
+    "stage": "GA"
   }
 }

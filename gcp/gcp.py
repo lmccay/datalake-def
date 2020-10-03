@@ -12,12 +12,16 @@ class GCPFactory:
 
     credentials = None
 
+    custom_roles = dict()
+
 
     def __str__(self):
         return "GCP"
 
+
     def vendor(self):
         return "Google"
+
 
     def get_auth_config(self):
         if (self.service_account_info is None):
@@ -26,33 +30,47 @@ class GCPFactory:
                 self.service_account_info = json.load(open(filename))
         return self.service_account_info
 
+
     def get_project_id(self, ddf):
         if (self.project_id is None):
             service_account_info = self.get_auth_config()
             self.project_id = service_account_info['project_id']
-            print('Project: ' + self.project_id)
         return self.project_id
+
 
     def get_credentials(self):
         if (self.credentials is None):
             self.credentials = service_account.Credentials.from_service_account_info(self.get_auth_config())
         return self.credentials
 
+
     def get_iam_client(self):
         return googleapiclient.discovery.build('iam', 'v1', credentials=self.get_credentials())
+
 
     def get_storage_client(self):
         return storage.Client();
 
+
     def get_resman_client(self):
         return googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=self.get_credentials())
+
+
+    def get_service_account_email(self, ddf, iam_role):
+        return iam_role + '@' + self.get_project_id(ddf) + '.iam.gserviceaccount.com'
+
+
+    def get_role_name(self, project_id, datalake_name, role_id):
+        role_name = 'projects/' + project_id + '/roles/' + datalake_name + '_' + role_id.replace('-', '_')
+        return role_name
+
 
     def build(self, ddf):
         datalakename = ddf['datalake']
 
         storage = dict()
-        for name,path in ddf['storage'].items():
-            storage[name] = path['path']
+        for name,path in ddf.get('storage').items():
+            storage[name] = path.get('path')
         print('Building ' + self.vendor() + ' Cloud artifacts for datalake named: ' + datalakename + '...')
 
         for name,role in ddf['datalake_roles'].items():
@@ -68,7 +86,8 @@ class GCPFactory:
                 elements = perm.split(':')
                 if elements[0] == 'storage':
                     perm_name = elements[1]
-                    filepath = 'templates/gcp/' + perm_name + '.json'
+                    print('Processing storage permission name ' + perm_name)
+                    filepath = 'templates/gcp/' + perm_name + '-role.json'
                     if os.path.exists(filepath):
                         from string import Template
                         # open template file
@@ -76,37 +95,27 @@ class GCPFactory:
                         d['storage_location'] = storage[elements[2]]
                         with open(filepath, 'r') as reader:
                             t = Template(reader.read())
-                            t = t.safe_substitute(d)
+                            t = t.safe_substitute({'datalake_name': datalakename})
 
-                        filename = 'datalakes/' + datalakename + '/GCP/' + iam_role + '-policy.json'
+                        filename = 'datalakes/' + datalakename + '/GCP/' + perm_name + '-role.json'
                         suffix = ''
                         if os.path.exists(filename):
                             suffix = str(i)
                         # open output file
-                        with open('datalakes/' + datalakename + '/GCP/' + iam_role + '-policy' + suffix + '.json', 'w') as writer:
+                        with open('datalakes/' + datalakename + '/GCP/' + perm_name + '-role' + suffix + '.json', 'w') as writer:
                             writer.write(t)
                         print('        ' + perm_name + 
                               ' for path: ' + d['storage_location'])
                     else:
                         print('Unknown permissions element: ' + elements[1] + ' check permissions in ddf file')
-                elif elements[0] == 'sts':
-                    filepath = 'templates/gcp/assume-roles.json'
-                    if os.path.exists(filepath):
-                        with open(filepath, 'r') as reader:
-                            t = reader.read()
-                        filename = 'datalakes/' + datalakename + '/GCP/' + iam_role + '-policy.json'
-                        suffix = ''
-                        if os.path.exists(filename):
-                            suffix = '-' + str(i)
-                        # open output file
-                        with open('datalakes/' + datalakename + '/GCP/' + iam_role + '-policy' + suffix + '.json', 'w') as writer:
-                            writer.write(t)
-                        print('        assumeRoles')
                 i = i + 1
+
 
     def push(self, ddf):
         if self.bucket_paths_are_unique(ddf) is True:
+            print()
             self.create_iam_entities(ddf)
+            self.create_custom_roles(ddf)
             self.create_bucket_paths(ddf)
         else:
             # TODO perhaps provide ability to get past this with something like:
@@ -114,16 +123,146 @@ class GCPFactory:
             #      2. ask user for a replacement bucket name
             print('Bucket already exists check your configured paths. Cannot push to cloud.')
 
+
     def recall(self, ddf):
         #if self.bucket_paths_are_unique(ddf) is False:
+            print()
             self.delete_iam_entities(ddf)
             self.delete_bucket_paths(ddf)
+            self.delete_custom_roles(ddf)
         #else:
             # TODO perhaps provide ability to get past this with something like:
             #      1. add number to end of existing names and recheck until unique
             #      2. ask user for a replacement bucket name
         #    print('Bucket does not exist check that this definition has been pushed.')
 
+
+    '''
+        Get the file contents associated with the specified datalake and policy.
+    '''
+    def load_role_policy(self, datalake_name, policy_name):
+        persistence_dir = 'datalakes/' + datalake_name + '/GCP/'
+        filepath = os.path.join(persistence_dir, policy_name + '-role.json')
+        return self.load_role_policy_file(filepath)
+
+    def load_role_policy_file(self, filepath):
+        policy_dict = None
+        if (os.path.isfile(filepath)):
+            with open(filepath, 'r') as reader:
+                policy = reader.read()
+                policy_dict = json.loads(policy)
+        return policy_dict
+
+
+    '''
+        Create the custom roles(policy) defined by the datalake definition.
+    '''
+    def create_custom_roles(self, ddf):
+        persisted_roles = dict()
+
+        project_id = self.get_project_id(ddf)
+        iam = self.get_iam_client()
+
+        # Load peristed roles
+        persistence_dir = 'datalakes/' + ddf.get('datalake') + '/GCP/'
+        print('Loading role definitions from ' + persistence_dir + ' ...')
+        # Iterate over persisted roles, loading them into a dict to satisfy references from IAM roles
+        for f in os.listdir(persistence_dir):
+            filepath = os.path.join(persistence_dir, f)
+            if (os.path.isfile(filepath)):
+                print('  Found persisted policy definition ' + f)
+                policy_dict = self.load_role_policy_file(filepath)
+
+                existing_role = None
+                try:
+                    existing_role = iam.projects().roles().get(name=self.get_role_name(project_id, ddf.get('datalake'), f.split('.')[0])).execute()
+                except HttpError as e:
+                    parsedError = json.loads(e.content)
+                    message = parsedError.get('error').get('message')
+                    print('  ' + message)
+                    
+                if (existing_role is not None):
+                    existing_name = existing_role.get('name')
+                    '''
+                      N.B. Deleting a custom role is not something that is easily undone.
+                           Therefore, recalled roles are actually disabled. If a previously-recalled role is encountered here,
+                           re-enable it, and update the permissions in case they have changed from the previous creation/update.
+                    '''
+                    #deleted = existing_role.get('deleted')
+                    #print('  Custom role ' + existing_name + ' exists (deleted=' + str(deleted) + ')')
+                    #if (deleted):
+                    stage = existing_role.get('stage')
+                    print('  Custom role ' + existing_name + ' exists (stage=' + str(stage) + ')')
+                    if (stage == 'DISABLED'):
+                        try:
+                            iam.projects().roles().patch(name=existing_name,
+                                                         body={
+                                                             "includedPermissions": policy_dict.get('includedPermissions'),
+                                                             "stage": "GA"
+                                                              }).execute()
+                            print('  Updated and re-enabled policy for ' + existing_name)
+                        except HttpError as e:
+                            parsedError = json.loads(e.content)
+                            print('  Failed to re-enable custom role : ' +  parsedError['error']['message'])
+                    else:
+                        print('  ' + existing_name + ' exists, but is NOT in the deleted stage.')
+                else:
+                    try:
+                        # Push the associated role descriptor on disk
+                        created_role = self.get_iam_client().projects().roles().create(parent='projects/' + project_id,
+                                                                                       body=policy_dict).execute()
+                        print('  Created custom role ' + created_role.get('name') + ' from ' + f)
+                    except HttpError as e:
+                        parsedError = json.loads(e.content)
+                        print('  Failed to create custom role from ' + f + ' : ' + parsedError.get('error').get('message'))
+            print()
+
+
+    '''
+        Delete the custom roles defined by the datalake definition.
+    '''
+    def delete_custom_roles(self, ddf):
+        permission_decls = ddf.get('permissions')
+        for category in permission_decls.keys():
+            #print('Deleting permissions category ' + category)
+            for role in permission_decls.get(category).keys():
+                #print('Deleting custom role ' + role)
+                self.delete_custom_role(ddf, role)
+        print()
+
+
+    '''
+        Delete the specified custom role.
+    '''
+    def delete_custom_role(self, ddf, role_id):
+        role_name = self.get_role_name(self.get_project_id(ddf), ddf.get('datalake'), role_id) + '_role'
+        print('Deleting custom role ' + role_name + ' for ' + role_id)
+        iam = self.get_iam_client()
+        if (iam.projects().roles().get(name=role_name) is not None):
+            try:
+                '''
+                  N.B. Deleting a custom role is not something that is easily undone.
+                       Therefore, rather than delete the role, the role is disabled, which is easily undone.
+                '''
+                #iam.projects().roles().delete(name=role_name).execute()
+                iam.projects().roles().patch(name=role_name,
+                                             body={
+                                                 "stage": "DISABLED"
+                                             }).execute()
+                print('Disabled custom role ' + role_name)
+            except HttpError as e:
+                parsedError = json.loads(e.content)
+                print('Could not disable custom role for ' + role_id + ' : ' + parsedError['error']['message'])
+            except Exception as e:
+                print('Unable to disable custom role for ' + role_id + ' : ' + str(e))
+        else:
+            print('Role does not exist: ' + role_name)
+        print()
+
+
+    '''
+        Create the service accounts defined by the datalake definition roles.
+    '''
     def create_iam_entities(self, ddf):
         iam = self.get_iam_client()
 
@@ -142,7 +281,7 @@ class GCPFactory:
         # Create the trusted roles
         for name,role in ddf['datalake_roles'].items():
             if (name in trusted_roles):
-                print('Creating service account for trusted role ' + name)
+                #print('Creating service account for trusted role ' + name)
                 trusted_iam_role = role['iam_role']
                 trusted_sa_email = None
                 service_accounts = iam.projects().serviceAccounts().list(name='projects/' + self.get_project_id(ddf)).execute()
@@ -155,6 +294,8 @@ class GCPFactory:
                     print(name + ' service account already exists: ' + trusted_sa_email)
                 else:
                     trusted_sa = self.create_service_account_for_role(ddf, name, trusted_iam_role , name + ' service account')
+                    if (trusted_sa is not None):
+                        print('Created service account ' + trusted_sa['email'] + ' for trusted ' + name)
                     trusted_sa_email = trusted_sa['email']
                     trusted_role_email.update({name: trusted_sa_email})
                     
@@ -168,7 +309,8 @@ class GCPFactory:
                             perm_role_list = []
                         perm_role_list.append(perm_role_name)
                         trusted_role_permissions.update({perm_category: perm_role_list})
-                    print('Declared ' + trusted_role + ' permissions : ' + json.dumps(trusted_role_permissions))
+                    #print('Declared ' + trusted_role + ' permissions : ' + json.dumps(trusted_role_permissions))
+        print()
 
 
         # Create service accounts for the remaining roles, and apply any associated policy
@@ -177,28 +319,43 @@ class GCPFactory:
             if (name not in trusted_roles):
                 instanceProfile = False
                 sa = self.create_service_account_for_role(ddf, name, iam_role_name, iam_role_name)
+                if (sa is not None):
+                    print('Created service account ' + sa['email'] + ' for ' + name)
 
                 # If the service account trusts another service account, then bind the associated policy
                 for trusted_role,trusted_sa in trusted_role_email.items():
                     if (role.get('trust') == trusted_role):
-                        print(name + ' trusts ' + trusted_role)
+                        #print(name + ' trusts ' + trusted_role)
                         self.bind_trusted_service_account_policy(ddf, trusted_sa, sa, trusted_role_permissions)
+        print()
 
 
+    '''
+        Create the specified service account.
+    '''
     def create_service_account_for_role(self, ddf, role, sa_name, sa_display_name):
-        iam = self.get_iam_client()
-
-        sa = iam.projects().serviceAccounts().create(name='projects/' + self.get_project_id(ddf),
-                        body={
-                            'accountId': sa_name,
-                            'serviceAccount': {
-                                'displayName': sa_display_name
-                             }
-                        }).execute()
-        print('Created service account: ' + sa['email'] + ' for ' + role)
+        sa = None
+        try:
+            iam = self.get_iam_client()
+            sa = iam.projects().serviceAccounts().create(name='projects/' + self.get_project_id(ddf),
+                            body={
+                                'accountId': sa_name,
+                                'serviceAccount': {
+                                    'displayName': sa_display_name
+                                 }
+                            }).execute()
+            #print('Created service account: ' + sa['email'] + ' for ' + role)
+        except HttpError as e:
+            parsedError = json.loads(e.content)
+            print("Failed to create service account " + sa_name + ' for role ' + role + ' : ' + parsedError['error']['message'])
         return sa
-        
 
+
+    '''
+        Define the service account policy corresponding to the associated trust relationship defined by the datalake definition.
+        In this scenario, the trusting service account is treated as a resource to which the trusted service account's
+        permissions(role(s)) are bound.
+    '''
     def bind_trusted_service_account_policy(self, ddf, trusted_sa_email, service_account, trusted_role_permissions):
         iam = self.get_iam_client()
 
@@ -215,82 +372,22 @@ class GCPFactory:
         # Create binding(s) for the  trusted servivce account based on the policy declarations
         for category in trusted_role_permissions.keys():
             for role in trusted_role_permissions.get(category):
-                print('Preparing policy binding for roles/' + category + "." + role)
+                #print('Preparing policy binding for roles/' + category + "." + role)
                 bindings.append({"role": "roles/" + category + "." + role, "members": "serviceAccount:" + trusted_sa_email})
-        print('Updated policy: ' + json.dumps(policy))
+        #print('Updated policy: ' + json.dumps(policy))
 
         # Push the updated service account policy
         iam.projects().serviceAccounts().setIamPolicy(resource=sa_resource,
                                                       body={"policy": policy, "updateMask": "bindings"}).execute()
 
 
-    def bucket_paths_are_unique(self, ddf):
-        # check storage locations for existing buckets which will prevent push
-        for name,storage in ddf['storage'].items():
-            bucket_path=storage['path']
-            if (bucket_path != '*'):
-                dirs = bucket_path[1:].split('/')
-                print('dirs: ' + str(dirs))
-                bucket_name = dirs[0]
-                print('bucket_name: ' + bucket_name)
-                if (self.bucket_exists(bucket_name) is True):
-                    # TODO allow user to indicate that the existing bucket
-                    # is intended and then skip trying to create it.
-                    return False
-        return True
-
-
-    def create_bucket_paths(self, ddf):
-        # create buckets based on storage paths in DDF
-        for name,storage in ddf['storage'].items():
-            bucket_path = storage['path']
-            print('bucket_path: ' + bucket_path)
-            if (bucket_path != '*'):
-                dirs = bucket_path[1:].split('/')
-                print('dirs: ' + str(dirs))
-                if (self.bucket_exists(dirs[0]) is False):
-                    self.create_bucket(dirs[0])
-                if len(dirs) > 1:
-                    path = bucket_path[len(dirs[0]) + 2:]
-                    self.create_folders(dirs[0], path) # TODO: Bucket role policy bindings
-
-    def create_folders(self, bucket_name, path):
-        # This is a folder creation inside the bucket
-        print('creating path: ' + path + ' within bucket: ' + bucket_name)
-        gcs_client = self.get_storage_client()
-        bucket = gcs_client.get_bucket(bucket_name)
-        blob = bucket.blob(path + '/')
-        blob.upload_from_string('')            
-        print('created path: ' + path + ' within bucket: ' + bucket_name)            
-
-    def create_bucket(self, bucket_name):
-        # Create a new bucket in specific location with storage class
-        storage_client = self.get_storage_client()
-
-        bucket = storage_client.bucket(bucket_name)
-        # TODO determine appropriate class for datalake defs
-        bucket.storage_class = "COLDLINE"
-        new_bucket = storage_client.create_bucket(bucket, location="us")
-        print(
-            "Created bucket {} in {} with storage class {}".format(
-                new_bucket.name, new_bucket.location, new_bucket.storage_class
-            )
-        )
-
-    def bucket_exists(self, bucket_name):
-        exists = True
-        try:
-            bucket = self.get_storage_client().get_bucket(bucket_name)
-        except exceptions.NotFound as e:
-            exists = False
-        return exists
-
+    '''
+        Delete the service accounts defined by the datalake definition roles.
+    '''
     def delete_iam_entities(self, ddf):
-        # Create IAM client
         iam = self.get_iam_client()
-
         for name,role in ddf['datalake_roles'].items():
-            sa_email = role['iam_role'] + '@' + self.get_project_id(ddf) + '.iam.gserviceaccount.com'
+            sa_email = self.get_service_account_email(ddf, role['iam_role'])
             try:
                 iam.projects().serviceAccounts().delete(name='projects/-/serviceAccounts/' + sa_email).execute()
                 print('Deleted service account: ' + sa_email + ' for ' + name)
@@ -302,22 +399,253 @@ class GCPFactory:
                     print('Could not delete service account ' + sa_email + ' for ' + name + ' : ' + str(e.content))
             except Exception as e:
                 print('Could not delete service account ' + sa_email  + ' for ' + name + ' : ' + str(e))
+        print()
 
 
+    '''
+        Check whether the bucket paths defined in the datalake defintion are unique.
+    '''
+    def bucket_paths_are_unique(self, ddf):
+        # Check storage locations for existing buckets which will prevent push
+        for name,storage in ddf['storage'].items():
+            bucket_path=storage['path']
+            if (bucket_path != '*'):
+                dirs = bucket_path[1:].split('/')
+                bucket_name = dirs[0]
+                if (self.bucket_exists(bucket_name) is True):
+                    # TODO allow user to indicate that the existing bucket
+                    # is intended and then skip trying to create it.
+                    return False
+        return True
+
+
+    '''
+        Create the bucket(s) and paths defined in the datalake defintion.
+    '''
+    def create_bucket_paths(self, ddf):
+        # Create buckets based on storage paths in DDF
+        for name,storage in ddf['storage'].items():
+            bucket_path = storage['path']
+            #print('Creating bucket path: ' + bucket_path)
+            if (bucket_path != '*'):
+                dirs = bucket_path[1:].split('/')
+                if (self.bucket_exists(dirs[0]) is False):
+                    self.create_bucket(dirs[0])
+                    self.bind_bucket_policy(ddf, dirs[0], None)
+                if len(dirs) > 1:
+                    path = bucket_path[len(dirs[0]) + 2:]
+                    self.create_bucket_path(dirs[0], path)
+                    self.bind_bucket_policy(ddf, dirs[0], path)
+
+
+    '''
+        Create the specified bucket path.
+    '''
+    def create_bucket_path(self, bucket_name, path):
+        # This is a folder creation inside the bucket
+        #print('Creating path ' + path + ' within bucket ' + bucket_name)
+        gcs_client = self.get_storage_client()
+        bucket = gcs_client.get_bucket(bucket_name)
+        blob = bucket.blob(path + '/')
+        blob.upload_from_string('')            
+        print('Created path \"' + path + '\" within bucket \"' + bucket_name + '\"')
+
+
+    '''
+        Create the specified bucket.
+    '''
+    def create_bucket(self, bucket_name):
+        # Create a new bucket in specific location with storage class
+        storage_client = self.get_storage_client()
+
+        bucket = storage_client.bucket(bucket_name)
+        # TODO determine appropriate class for datalake defs
+        bucket.storage_class = "COLDLINE"
+
+        # Enable uniform bucket level access to allow for policy binding conditions
+        bucket.iam_configuration.uniform_bucket_level_access_enabled = True
+
+        new_bucket = storage_client.create_bucket(bucket, location="us")
+        print(
+            "Created bucket {} in {} with storage class {} and iam configuration {}".format(
+                new_bucket.name, new_bucket.location, new_bucket.storage_class, new_bucket.iam_configuration
+            )
+        )
+        return new_bucket
+
+
+    '''
+        Check whether the specified bucket exists.
+    '''
+    def bucket_exists(self, bucket_name):
+        exists = True
+        try:
+            bucket = self.get_storage_client().get_bucket(bucket_name)
+        except exceptions.NotFound as e:
+            exists = False
+        return exists
+
+
+    '''
+        Define the bucket policy corresponding to the roles and storage permissions associated with
+        the specified storage location.
+        Since policy cannot be bound to objects within a bucket, IAM Conditions are employed to
+        specify the datalake definition's path-level permissions.
+    '''
+    def bind_bucket_policy(self, ddf, bucket_name, folder_path):
+        # The policy version is required to be 3 or greater to support IAM Conditions
+        bucket_policy_version = 3
+
+        target_path = '/' + bucket_name
+        if (folder_path is not None):
+            target_path += '/' + folder_path
+
+        # Determine the roles and permissions defined for this bucket/path
+        storage_location_name = None
+        for name, location in ddf.get('storage').items():
+            location_path = location.get('path')
+            if (location_path is not None):
+                if (location_path == target_path):
+                    storage_location_name = name
+                    #print('DEBUG: Found storage location ' + name + ' for ' + target_path)
+                    break
+
+        storage_reference_roles = dict()
+        if (storage_location_name is not None):
+            # Identify all the roles that reference the storage location
+            for name, role in ddf.get('datalake_roles').items():
+                for perm in role.get('permissions'):
+                    if (perm.startswith('storage:')):
+                        if (perm.endswith(storage_location_name)):
+                            permission = perm.split(':')[1]
+                            #print('DEBUG: ' + name + ' role references storage location ' + storage_location_name + ' with permission ' + permission)
+                            role_perms = storage_reference_roles.get(name)
+                            if (role_perms is None):
+                                role_perms = []
+                            role_perms.append(permission)
+                            storage_reference_roles.update({name : role_perms})
+
+        bindings = dict()
+
+        storage_perms = ddf.get('permissions').get('storage')
+        for role_name,role_perms in storage_reference_roles.items():
+            #print('DEBUG: Bind the custom role for ' + str(role_perms) + ' to the service account for ' + role_name + ' to the location ' + target_path)
+            # Use role name to get the IAM service account name
+            service_account_name = ddf.get('datalake_roles').get(role_name).get('iam_role')
+            service_account_email = self.get_service_account_email(ddf, service_account_name)
+            #print('DEBUG: ' + role_name + ' service account: ' + service_account_name + ' (' + service_account_email + ')')
+
+            # role_perms elements are permmissions:storage entry names
+            binding_roles = []
+            for role_perm in role_perms:
+                policy = self.load_role_policy(ddf.get('datalake'), role_perm)
+                #print('DEBUG: Loaded policy: ' + json.dumps(policy))
+                binding_roles.append(policy.get('roleId'))
+            bindings.update({service_account_email : binding_roles})
+
+        project_id = self.get_project_id(ddf)
+
+        gcs = self.get_storage_client()
+        bucket = gcs.get_bucket(bucket_name)
+
+        # The policy version is required to be 3 or greater for IAM Conditions to be used
+        policy = bucket.get_iam_policy(requested_policy_version=bucket_policy_version)
+
+        #print('\n DEBUG: Original policy:\n' + str(policy.bindings) + '\n')
+        bucket_bindings = policy.bindings
+        if (bucket_bindings is None):
+            bucket_bindings = []
+            policy.update({"bindings": bindings})
+
+        # The policy version might be less than the necessary version requested, so set it again
+        if (policy.version < bucket_policy_version):
+            policy.version = bucket_policy_version
+
+        for sa,roles in bindings.items():
+            #print('DEBUG: Bind ' + sa + ' to ' + str(roles))
+            for role in roles:
+               #print('DEBUG: Attempting to bind ' + role + ' to bucket')
+                matching_binding = None
+                for bucket_binding in bucket_bindings:
+                    bucket_binding_role =  bucket_binding.get('role')
+                    #print('DEBUG: bucket_binding role: ' + bucket_binding_role)
+                    role_members = None
+                    if (bucket_binding_role == ('projects/' + project_id + '/roles/' + role)):
+                        matching_binding = bucket_binding
+                        #print('DEBUG: Found matching bucket binding: ' + bucket_binding_role)
+                        break
+
+                if(matching_binding is None):
+                    #print('DEBUG: No existing binding for ' + project_id + '/roles/' + role)
+                    new_binding = dict({
+                                         'role': 'projects/' + project_id + '/roles/' + role,
+                                         'members': [
+                                               'serviceAccount:' + sa
+                                         ]
+                                       })
+
+                    # Determine any path detail which should be used to qualify the bucket policy binding
+                    path_condition_value = target_path[len(bucket_name)+2:len(target_path)]
+                    if (path_condition_value is not None):
+                        if (len(path_condition_value) > 0):
+                            new_binding.update({
+                                                 'condition': {
+                                                      'description' : 'Path restriction',
+                                                      'expression' : 'resource.name.startsWith("projects/_/buckets/' + bucket_name + '/objects/' + path_condition_value + '")'
+                                                  }
+                                               })
+
+                    bucket_bindings.append(new_binding)
+                    print('Applying permissions to ' + bucket_name + ': ' + str(new_binding))
+
+                    #print('DEBUG: Added new role binding for projects/' + project_id + '/roles/' + role)
+                else:
+                    #print('DEBUG: Update existing binding for projects/' + project_id + '/roles/' + role)
+                    role_members = bucket_binding_role.get('members')
+                    if(role_members is None):
+                        role_members = []
+                        bucket_binding_role.update({"members" : role_members})
+                        role_members.append("serviceAccount:" + sa)
+                        # TODO: PJZ: Check condition for path restriction
+
+        #print('\n DEBUG: Updated policy:\n' + str(policy.bindings) + '\n')
+
+        # Push the updated service account policy
+        bucket.set_iam_policy(policy)
+        print()
+
+
+    '''
+        Delete the bucket defined in the datalake defintion.
+    '''
     def delete_bucket_paths(self, ddf):
         # Delete buckets based on storage paths in DDF
         for name,storage in ddf['storage'].items():
             bucket_path=storage['path']
             if (bucket_path != '*'):
                 dirs = bucket_path[1:].split('/')
-#                print('dirs: ' + str(dirs))
                 if (self.bucket_exists(dirs[0]) is True):
                     self.delete_bucket(dirs[0])
+        print()
 
+
+    '''
+        Delete the specified bucket.
+    '''
     def delete_bucket(self, bucket_name):
         # Deletes a bucket.
         storage_client = self.get_storage_client()
         bucket = storage_client.get_bucket(bucket_name)
         bucket.delete(force=True)
         print("Bucket {} deleted".format(bucket.name))
+
+
+    '''
+        Print the bindings associated with the specified policy.
+    '''
+    def dump_policy(self, policy):
+        if (policy.bindings is not None):
+            print('bindings: ' + str(policy.bindings))
+        else:
+            print('No policy bindings')
 

@@ -1,10 +1,11 @@
 {
-  "roleId": "list-only-storage-role",
+  "roleId": "${datalake_name}_list_only_storage_role",
   "role": {
     "description": "List-only storage role",
     "includedPermissions": [
       "storage.buckets.list",
       "storage.objects.list"
-    ]
+    ],
+    "stage": "GA"
   }
 }

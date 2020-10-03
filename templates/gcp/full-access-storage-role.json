@@ -1,5 +1,5 @@
 {
-  "roleId": "full-access-storage-role",
+  "roleId": "${datalake_name}_full_access_storage_role",
   "role": {
     "description": "Full access storage role",
     "includedPermissions": [
@@ -13,6 +13,7 @@
       "storage.objects.get",
       "storage.objects.update",
       "storage.objects.delete"
-    ]
+    ],
+    "stage": "GA"
   }
 }

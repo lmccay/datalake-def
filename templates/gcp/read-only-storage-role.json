@@ -1,11 +1,12 @@
 {
-  "roleId": "read-only-storage-role",
+  "roleId": "${datalake_name}_read_only_storage_role",
   "role": {
     "description": "Read-only storage role",
     "includedPermissions": [
       "storage.buckets.get",
       "storage.buckets.list",
       "storage.objects.get"
-    ]
+    ],
+    "stage": "GA"
   }
 }

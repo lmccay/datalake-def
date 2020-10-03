@@ -250,18 +250,18 @@ Set up and run scripts for Google Cloud Platform (GCP).
 		            instance_profile: true
 		            trust: IDBROKER_ROLE
 		            permissions:
-		                - "storage:read-write-storage-role:LOGS_LOCATION_BASE"
+		                - "storage:read-write-storage:LOGS_LOCATION_BASE"
 		    RANGER_AUDIT_ROLE:
 		            iam_role: cdp-mydl-ranger-audit
 		            trust: IDBROKER_ROLE
 		            permissions:
-		                - "storage:full-object-access-storage-role:RANGER_AUDIT_LOCATION"
-		                - "storage:read-only-storage-role:DATALAKE_BUCKET"
+		                - "storage:full-object-access-storage:RANGER_AUDIT_LOCATION"
+		                - "storage:read-only-storage:DATALAKE_BUCKET"
 		    DATALAKE_ADMIN_ROLE:
 		            iam_role: cdp-mydl-admin
 		            trust: IDBROKER_ROLE
 		            permissions:
-		                - "storage:full-access-storage-role:STORAGE_LOCATION_BASE"
+		                - "storage:full-access-storage:STORAGE_LOCATION_BASE"
 		storage:
 		    STORAGE_LOCATION_BASE:
 		            description: data directory
@@ -283,22 +283,22 @@ Set up and run scripts for Google Cloud Platform (GCP).
 		            path: '*'
 		permissions:
 		    storage:
-		        full-access-storage-role:
+		        full-access-storage:
 		            rank: 1
 		            description: the force
-		        full-object-access-storage-role:
+		        full-object-access-storage:
 		            rank: 2
 		            description: jedi master
-		        read-write-storage-role:
+		        read-write-storage:
 		            rank: 3
 		            description: jedi knight
-		        execute-storage-role:
+		        execute-storage:
 		            rank: 4
 		            description: padawan
-		        read-only-storage-role:
+		        read-only-storage:
 		            rank: 5
 		            description: youngling 
-		        list-only-storage-role:
+		        list-only-storage:
 		            rank: 6 
 		            description: hmmmm 
 		    iam:
