@@ -1,5 +1,5 @@
 {
-  "roleId": "${datalake_name}_read_only_storage_role",
+  "roleId": "${datalake_name}_read_only",
   "role": {
     "description": "Read-only storage role",
     "includedPermissions": [

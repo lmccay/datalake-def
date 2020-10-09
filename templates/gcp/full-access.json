@@ -1,5 +1,5 @@
 {
-  "roleId": "${datalake_name}_full_access_storage_role",
+  "roleId": "${datalake_name}_full_access",
   "role": {
     "description": "Full access storage role",
     "includedPermissions": [

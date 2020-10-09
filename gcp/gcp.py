@@ -1,10 +1,13 @@
-import os, sys, json, time
+import os, sys, json, time, logging
 from google.cloud import storage, exceptions
 from google.oauth2 import service_account
 import googleapiclient.discovery
 from googleapiclient.errors import HttpError
 
 class GCPFactory:
+
+    logging.basicConfig(format='%(name)s: %(levelname)s: %(message)s', level=logging.INFO)
+    logger = logging.getLogger('GCPFactory')
 
     service_account_info = None
 
@@ -45,7 +48,7 @@ class GCPFactory:
 
 
     def get_iam_client(self):
-        return googleapiclient.discovery.build('iam', 'v1', credentials=self.get_credentials())
+        return googleapiclient.discovery.build('iam', 'v1', credentials=self.get_credentials(), cache_discovery=False)
 
 
     def get_storage_client(self):
@@ -53,7 +56,7 @@ class GCPFactory:
 
 
     def get_resman_client(self):
-        return googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=self.get_credentials())
+        return googleapiclient.discovery.build('cloudresourcemanager', 'v1', credentials=self.get_credentials(), cache_discovery=False)
 
 
     def get_service_account_email(self, ddf, iam_role):
@@ -71,7 +74,7 @@ class GCPFactory:
         storage = dict()
         for name,path in ddf.get('storage').items():
             storage[name] = path.get('path')
-        print('Building ' + self.vendor() + ' Cloud artifacts for datalake named: ' + datalakename + '...')
+        self.logger.info('Building ' + self.vendor() + ' Cloud artifacts for datalake named: ' + datalakename + '...')
 
         for name,role in ddf['datalake_roles'].items():
             instanceProfile = False
@@ -81,13 +84,13 @@ class GCPFactory:
             iam_role = role['iam_role']
             permissions = role['permissions']
             i = 0
-            print('The datalake role: ' + name + ' is assigned the iam role: ' + iam_role + '\n' + '    which has been granted: ')
+            self.logger.info('The datalake role: ' + name + ' is assigned the iam role: ' + iam_role)
             for perm in permissions:
                 elements = perm.split(':')
                 if elements[0] == 'storage':
                     perm_name = elements[1]
-                    print('Processing storage permission name ' + perm_name)
-                    filepath = 'templates/gcp/' + perm_name + '-role.json'
+                    self.logger.debug('Processing storage permission name ' + perm_name)
+                    filepath = 'templates/gcp/' + perm_name + '.json'
                     if os.path.exists(filepath):
                         from string import Template
                         # open template file
@@ -97,18 +100,17 @@ class GCPFactory:
                             t = Template(reader.read())
                             t = t.safe_substitute({'datalake_name': datalakename})
 
-                        filename = 'datalakes/' + datalakename + '/GCP/' + perm_name + '-role.json'
+                        filename = 'datalakes/' + datalakename + '/GCP/' + perm_name + '.json'
                         suffix = ''
                         if os.path.exists(filename):
                             suffix = str(i)
                         # open output file
-                        with open('datalakes/' + datalakename + '/GCP/' + perm_name + '-role' + suffix + '.json', 'w') as writer:
+                        with open('datalakes/' + datalakename + '/GCP/' + perm_name + suffix + '.json', 'w') as writer:
                             writer.write(t)
-                        print('        ' + perm_name + 
-                              ' for path: ' + d['storage_location'])
+                        self.logger.info('    Granted permission ' + perm_name + ' for path: ' + d['storage_location'])
                     else:
-                        print('Unknown permissions element: ' + elements[1] + ' check permissions in ddf file')
-                i = i + 1
+                        self.logger.info('    Skipping permission \"' + elements[0] + ':' + perm_name + '\" : No template (check permissions in ddf file)')
+            print()
 
 
     def push(self, ddf):
@@ -121,7 +123,7 @@ class GCPFactory:
             # TODO perhaps provide ability to get past this with something like:
             #      1. add number to end of existing names and recheck until unique
             #      2. ask user for a replacement bucket name
-            print('Bucket already exists check your configured paths. Cannot push to cloud.')
+            self.logger.warning('Bucket already exists check your configured paths. Cannot push to cloud.')
 
 
     def recall(self, ddf):
@@ -134,7 +136,7 @@ class GCPFactory:
             # TODO perhaps provide ability to get past this with something like:
             #      1. add number to end of existing names and recheck until unique
             #      2. ask user for a replacement bucket name
-        #    print('Bucket does not exist check that this definition has been pushed.')
+            #self.logger.info('Bucket does not exist check that this definition has been pushed.')
 
 
     '''
@@ -142,7 +144,7 @@ class GCPFactory:
     '''
     def load_role_policy(self, datalake_name, policy_name):
         persistence_dir = 'datalakes/' + datalake_name + '/GCP/'
-        filepath = os.path.join(persistence_dir, policy_name + '-role.json')
+        filepath = os.path.join(persistence_dir, policy_name + '.json')
         return self.load_role_policy_file(filepath)
 
     def load_role_policy_file(self, filepath):
@@ -165,22 +167,21 @@ class GCPFactory:
 
         # Load peristed roles
         persistence_dir = 'datalakes/' + ddf.get('datalake') + '/GCP/'
-        print('Loading role definitions from ' + persistence_dir + ' ...')
+        self.logger.info('Loading role definitions from ' + persistence_dir + ' ...')
         # Iterate over persisted roles, loading them into a dict to satisfy references from IAM roles
         for f in os.listdir(persistence_dir):
             filepath = os.path.join(persistence_dir, f)
             if (os.path.isfile(filepath)):
-                print('  Found persisted policy definition ' + f)
+                self.logger.info('  Found persisted policy definition ' + f)
                 policy_dict = self.load_role_policy_file(filepath)
 
                 existing_role = None
                 try:
                     existing_role = iam.projects().roles().get(name=self.get_role_name(project_id, ddf.get('datalake'), f.split('.')[0])).execute()
                 except HttpError as e:
-                    parsedError = json.loads(e.content)
-                    message = parsedError.get('error').get('message')
-                    print('  ' + message)
-                    
+                    self.logger.debug('  ' + json.loads(e.content).get('error').get('message'))
+                    pass
+
                 if (existing_role is not None):
                     existing_name = existing_role.get('name')
                     '''
@@ -188,11 +189,8 @@ class GCPFactory:
                            Therefore, recalled roles are actually disabled. If a previously-recalled role is encountered here,
                            re-enable it, and update the permissions in case they have changed from the previous creation/update.
                     '''
-                    #deleted = existing_role.get('deleted')
-                    #print('  Custom role ' + existing_name + ' exists (deleted=' + str(deleted) + ')')
-                    #if (deleted):
                     stage = existing_role.get('stage')
-                    print('  Custom role ' + existing_name + ' exists (stage=' + str(stage) + ')')
+                    self.logger.info('  Custom role ' + existing_name + ' exists (stage=' + str(stage) + ')')
                     if (stage == 'DISABLED'):
                         try:
                             iam.projects().roles().patch(name=existing_name,
@@ -200,21 +198,21 @@ class GCPFactory:
                                                              "includedPermissions": policy_dict.get('includedPermissions'),
                                                              "stage": "GA"
                                                               }).execute()
-                            print('  Updated and re-enabled policy for ' + existing_name)
+                            self.logger.info('  Updated and re-enabled policy for ' + existing_name)
                         except HttpError as e:
                             parsedError = json.loads(e.content)
-                            print('  Failed to re-enable custom role : ' +  parsedError['error']['message'])
+                            self.logger.error('  Failed to re-enable custom role : ' +  parsedError['error']['message'])
                     else:
-                        print('  ' + existing_name + ' exists, but is NOT in the deleted stage.')
+                        self.logger.info('  ' + existing_name + ' exists, but is NOT in the deleted stage.')
                 else:
                     try:
                         # Push the associated role descriptor on disk
                         created_role = self.get_iam_client().projects().roles().create(parent='projects/' + project_id,
                                                                                        body=policy_dict).execute()
-                        print('  Created custom role ' + created_role.get('name') + ' from ' + f)
+                        self.logger.info('  Created custom role ' + created_role.get('name') + ' from ' + f)
                     except HttpError as e:
                         parsedError = json.loads(e.content)
-                        print('  Failed to create custom role from ' + f + ' : ' + parsedError.get('error').get('message'))
+                        self.logger.error('  Failed to create custom role from ' + f + ' : ' + parsedError.get('error').get('message'))
             print()
 
 
@@ -224,9 +222,9 @@ class GCPFactory:
     def delete_custom_roles(self, ddf):
         permission_decls = ddf.get('permissions')
         for category in permission_decls.keys():
-            #print('Deleting permissions category ' + category)
+            self.logger.debug('Deleting permissions category ' + category)
             for role in permission_decls.get(category).keys():
-                #print('Deleting custom role ' + role)
+                self.logger.debug('Deleting custom role ' + role)
                 self.delete_custom_role(ddf, role)
         print()
 
@@ -235,8 +233,8 @@ class GCPFactory:
         Delete the specified custom role.
     '''
     def delete_custom_role(self, ddf, role_id):
-        role_name = self.get_role_name(self.get_project_id(ddf), ddf.get('datalake'), role_id) + '_role'
-        print('Deleting custom role ' + role_name + ' for ' + role_id)
+        role_name = self.get_role_name(self.get_project_id(ddf), ddf.get('datalake'), role_id)
+        self.logger.info('Deleting custom role ' + role_name + ' for ' + role_id)
         iam = self.get_iam_client()
         if (iam.projects().roles().get(name=role_name) is not None):
             try:
@@ -249,14 +247,14 @@ class GCPFactory:
                                              body={
                                                  "stage": "DISABLED"
                                              }).execute()
-                print('Disabled custom role ' + role_name)
+                self.logger.info('  Disabled custom role ' + role_name)
             except HttpError as e:
                 parsedError = json.loads(e.content)
-                print('Could not disable custom role for ' + role_id + ' : ' + parsedError['error']['message'])
+                self.logger.warning('  Could not disable custom role for ' + role_id + ' : ' + parsedError['error']['message'])
             except Exception as e:
-                print('Unable to disable custom role for ' + role_id + ' : ' + str(e))
+                self.logger.error('  Unable to disable custom role for ' + role_id + ' : ' + str(e))
         else:
-            print('Role does not exist: ' + role_name)
+            self.logger.info('Role does not exist: ' + role_name)
         print()
 
 
@@ -281,7 +279,7 @@ class GCPFactory:
         # Create the trusted roles
         for name,role in ddf['datalake_roles'].items():
             if (name in trusted_roles):
-                #print('Creating service account for trusted role ' + name)
+                self.logger.debug('Creating service account for trusted role ' + name)
                 trusted_iam_role = role['iam_role']
                 trusted_sa_email = None
                 service_accounts = iam.projects().serviceAccounts().list(name='projects/' + self.get_project_id(ddf)).execute()
@@ -291,27 +289,26 @@ class GCPFactory:
                         trusted_sa_email = sa_email
 
                 if (trusted_sa_email is not None):
-                    print(name + ' service account already exists: ' + trusted_sa_email)
+                    self.logger.info(name + ' service account already exists: ' + trusted_sa_email)
                 else:
                     trusted_sa = self.create_service_account_for_role(ddf, name, trusted_iam_role , name + ' service account')
                     if (trusted_sa is not None):
-                        print('Created service account ' + trusted_sa['email'] + ' for trusted ' + name)
+                        self.logger.info('Created service account ' + trusted_sa['email'] + ' for trusted ' + name)
                     trusted_sa_email = trusted_sa['email']
                     trusted_role_email.update({name: trusted_sa_email})
                     
                     trusted_role_perm_decls = role.get('permissions')
                     for perm_decl in trusted_role_perm_decls:
                         decl_parts = perm_decl.split(":")
-                        perm_category = decl_parts[0]
-                        perm_role_name = decl_parts[1] 
+                        perm_category = self.translate_perm_category(decl_parts[0])
+                        perm_role_name = self.translate_perm_name(decl_parts[1])
                         perm_role_list = trusted_role_permissions.get(perm_category)
                         if (perm_role_list is None):
                             perm_role_list = []
                         perm_role_list.append(perm_role_name)
                         trusted_role_permissions.update({perm_category: perm_role_list})
-                    #print('Declared ' + trusted_role + ' permissions : ' + json.dumps(trusted_role_permissions))
+                    self.logger.debug('Declared ' + trusted_role + ' permissions : ' + json.dumps(trusted_role_permissions))
         print()
-
 
         # Create service accounts for the remaining roles, and apply any associated policy
         for name,role in ddf['datalake_roles'].items():
@@ -320,14 +317,34 @@ class GCPFactory:
                 instanceProfile = False
                 sa = self.create_service_account_for_role(ddf, name, iam_role_name, iam_role_name)
                 if (sa is not None):
-                    print('Created service account ' + sa['email'] + ' for ' + name)
+                    self.logger.info('Created service account ' + sa['email'] + ' for ' + name)
 
                 # If the service account trusts another service account, then bind the associated policy
                 for trusted_role,trusted_sa in trusted_role_email.items():
                     if (role.get('trust') == trusted_role):
-                        #print(name + ' trusts ' + trusted_role)
+                        self.logger.debug(name + ' trusts ' + trusted_role)
                         self.bind_trusted_service_account_policy(ddf, trusted_sa, sa, trusted_role_permissions)
         print()
+
+
+    '''
+        Translate the DDF permission category into the GCP-specific equivalent
+    '''
+    def translate_perm_category(self, category):
+        result = category
+        if (category == 'sts'):
+            result = 'iam'
+        return result
+
+
+    '''
+        Translate the DDF permission name into the GCP-specific equivalent
+    '''
+    def translate_perm_name(self, name):
+        result = name
+        if (name == 'assume-roles'):
+            result = 'serviceAccountTokenCreator'
+        return result
 
 
     '''
@@ -344,10 +361,10 @@ class GCPFactory:
                                     'displayName': sa_display_name
                                  }
                             }).execute()
-            #print('Created service account: ' + sa['email'] + ' for ' + role)
+            self.logger.debug('Created service account: ' + sa['email'] + ' for ' + role)
         except HttpError as e:
             parsedError = json.loads(e.content)
-            print("Failed to create service account " + sa_name + ' for role ' + role + ' : ' + parsedError['error']['message'])
+            self.logger.error("Failed to create service account " + sa_name + ' for role ' + role + ' : ' + parsedError['error']['message'])
         return sa
 
 
@@ -372,9 +389,9 @@ class GCPFactory:
         # Create binding(s) for the  trusted servivce account based on the policy declarations
         for category in trusted_role_permissions.keys():
             for role in trusted_role_permissions.get(category):
-                #print('Preparing policy binding for roles/' + category + "." + role)
+                self.logger.debug('Preparing policy binding for roles/' + category + "." + role)
                 bindings.append({"role": "roles/" + category + "." + role, "members": "serviceAccount:" + trusted_sa_email})
-        #print('Updated policy: ' + json.dumps(policy))
+        self.logger.debug('Updated policy: ' + json.dumps(policy))
 
         # Push the updated service account policy
         iam.projects().serviceAccounts().setIamPolicy(resource=sa_resource,
@@ -390,15 +407,15 @@ class GCPFactory:
             sa_email = self.get_service_account_email(ddf, role['iam_role'])
             try:
                 iam.projects().serviceAccounts().delete(name='projects/-/serviceAccounts/' + sa_email).execute()
-                print('Deleted service account: ' + sa_email + ' for ' + name)
+                self.logger.info('Deleted service account: ' + sa_email + ' for ' + name)
             except HttpError as e:
                 parsedError = json.loads(e.content)
                 if (parsedError['error']['code'] == 404):
-                    print('Could not delete service account ' + sa_email + ' for ' + name + ' : Service account does not exist.')
+                    self.logger.error('Could not delete service account ' + sa_email + ' for ' + name + ' : Service account does not exist.')
                 else:
-                    print('Could not delete service account ' + sa_email + ' for ' + name + ' : ' + str(e.content))
+                    self.logger.error('Could not delete service account ' + sa_email + ' for ' + name + ' : ' + str(e.content))
             except Exception as e:
-                print('Could not delete service account ' + sa_email  + ' for ' + name + ' : ' + str(e))
+                self.logger.error('Could not delete service account ' + sa_email  + ' for ' + name + ' : ' + str(e))
         print()
 
 
@@ -426,7 +443,7 @@ class GCPFactory:
         # Create buckets based on storage paths in DDF
         for name,storage in ddf['storage'].items():
             bucket_path = storage['path']
-            #print('Creating bucket path: ' + bucket_path)
+            self.logger.debug('Creating bucket path: ' + bucket_path)
             if (bucket_path != '*'):
                 dirs = bucket_path[1:].split('/')
                 if (self.bucket_exists(dirs[0]) is False):
@@ -443,12 +460,12 @@ class GCPFactory:
     '''
     def create_bucket_path(self, bucket_name, path):
         # This is a folder creation inside the bucket
-        #print('Creating path ' + path + ' within bucket ' + bucket_name)
+        self.logger.debug('Creating path ' + path + ' within bucket ' + bucket_name)
         gcs_client = self.get_storage_client()
         bucket = gcs_client.get_bucket(bucket_name)
         blob = bucket.blob(path + '/')
         blob.upload_from_string('')            
-        print('Created path \"' + path + '\" within bucket \"' + bucket_name + '\"')
+        self.logger.info('Created path \"' + path + '\" within bucket \"' + bucket_name + '\"')
 
 
     '''
@@ -466,7 +483,7 @@ class GCPFactory:
         bucket.iam_configuration.uniform_bucket_level_access_enabled = True
 
         new_bucket = storage_client.create_bucket(bucket, location="us")
-        print(
+        self.logger.info(
             "Created bucket {} in {} with storage class {} and iam configuration {}".format(
                 new_bucket.name, new_bucket.location, new_bucket.storage_class, new_bucket.iam_configuration
             )
@@ -507,7 +524,7 @@ class GCPFactory:
             if (location_path is not None):
                 if (location_path == target_path):
                     storage_location_name = name
-                    #print('DEBUG: Found storage location ' + name + ' for ' + target_path)
+                    self.logger.debug('Found storage location ' + name + ' for ' + target_path)
                     break
 
         storage_reference_roles = dict()
@@ -518,7 +535,7 @@ class GCPFactory:
                     if (perm.startswith('storage:')):
                         if (perm.endswith(storage_location_name)):
                             permission = perm.split(':')[1]
-                            #print('DEBUG: ' + name + ' role references storage location ' + storage_location_name + ' with permission ' + permission)
+                            self.logger.debug(name + ' role references storage location ' + storage_location_name + ' with permission ' + permission)
                             role_perms = storage_reference_roles.get(name)
                             if (role_perms is None):
                                 role_perms = []
@@ -529,17 +546,17 @@ class GCPFactory:
 
         storage_perms = ddf.get('permissions').get('storage')
         for role_name,role_perms in storage_reference_roles.items():
-            #print('DEBUG: Bind the custom role for ' + str(role_perms) + ' to the service account for ' + role_name + ' to the location ' + target_path)
+            self.logger.debug('Bind the custom role for ' + str(role_perms) + ' to the service account for ' + role_name + ' to the location ' + target_path)
             # Use role name to get the IAM service account name
             service_account_name = ddf.get('datalake_roles').get(role_name).get('iam_role')
             service_account_email = self.get_service_account_email(ddf, service_account_name)
-            #print('DEBUG: ' + role_name + ' service account: ' + service_account_name + ' (' + service_account_email + ')')
+            self.logger.debug(role_name + ' service account: ' + service_account_name + ' (' + service_account_email + ')')
 
             # role_perms elements are permmissions:storage entry names
             binding_roles = []
             for role_perm in role_perms:
                 policy = self.load_role_policy(ddf.get('datalake'), role_perm)
-                #print('DEBUG: Loaded policy: ' + json.dumps(policy))
+                self.logger.debug('Loaded policy: ' + json.dumps(policy))
                 binding_roles.append(policy.get('roleId'))
             bindings.update({service_account_email : binding_roles})
 
@@ -551,7 +568,7 @@ class GCPFactory:
         # The policy version is required to be 3 or greater for IAM Conditions to be used
         policy = bucket.get_iam_policy(requested_policy_version=bucket_policy_version)
 
-        #print('\n DEBUG: Original policy:\n' + str(policy.bindings) + '\n')
+        self.logger.debug('Original policy:\n' + str(policy.bindings) + '\n')
         bucket_bindings = policy.bindings
         if (bucket_bindings is None):
             bucket_bindings = []
@@ -562,21 +579,21 @@ class GCPFactory:
             policy.version = bucket_policy_version
 
         for sa,roles in bindings.items():
-            #print('DEBUG: Bind ' + sa + ' to ' + str(roles))
+            self.logger.debug('Bind ' + sa + ' to ' + str(roles))
             for role in roles:
-               #print('DEBUG: Attempting to bind ' + role + ' to bucket')
+                self.logger.debug('Attempting to bind ' + role + ' to bucket')
                 matching_binding = None
                 for bucket_binding in bucket_bindings:
                     bucket_binding_role =  bucket_binding.get('role')
-                    #print('DEBUG: bucket_binding role: ' + bucket_binding_role)
+                    self.logger.debug('bucket_binding role: ' + bucket_binding_role)
                     role_members = None
                     if (bucket_binding_role == ('projects/' + project_id + '/roles/' + role)):
                         matching_binding = bucket_binding
-                        #print('DEBUG: Found matching bucket binding: ' + bucket_binding_role)
+                        self.logger.debug('Found matching bucket binding: ' + bucket_binding_role)
                         break
 
                 if(matching_binding is None):
-                    #print('DEBUG: No existing binding for ' + project_id + '/roles/' + role)
+                    self.logger.debug('No existing binding for ' + project_id + '/roles/' + role)
                     new_binding = dict({
                                          'role': 'projects/' + project_id + '/roles/' + role,
                                          'members': [
@@ -596,11 +613,11 @@ class GCPFactory:
                                                })
 
                     bucket_bindings.append(new_binding)
-                    print('Applying permissions to ' + bucket_name + ': ' + str(new_binding))
+                    self.logger.info('  Applying permissions to ' + bucket_name + ':\n    ' + str(new_binding))
 
-                    #print('DEBUG: Added new role binding for projects/' + project_id + '/roles/' + role)
+                    self.logger.debug('Added new role binding for projects/' + project_id + '/roles/' + role)
                 else:
-                    #print('DEBUG: Update existing binding for projects/' + project_id + '/roles/' + role)
+                    self.logger.debug('Update existing binding for projects/' + project_id + '/roles/' + role)
                     role_members = bucket_binding_role.get('members')
                     if(role_members is None):
                         role_members = []
@@ -608,7 +625,7 @@ class GCPFactory:
                         role_members.append("serviceAccount:" + sa)
                         # TODO: PJZ: Check condition for path restriction
 
-        #print('\n DEBUG: Updated policy:\n' + str(policy.bindings) + '\n')
+        self.logger.debug('Updated policy:\n' + str(policy.bindings) + '\n')
 
         # Push the updated service account policy
         bucket.set_iam_policy(policy)
@@ -637,7 +654,7 @@ class GCPFactory:
         storage_client = self.get_storage_client()
         bucket = storage_client.get_bucket(bucket_name)
         bucket.delete(force=True)
-        print("Bucket {} deleted".format(bucket.name))
+        self.logger.info("Bucket {} deleted".format(bucket.name))
 
 
     '''
@@ -645,7 +662,7 @@ class GCPFactory:
     '''
     def dump_policy(self, policy):
         if (policy.bindings is not None):
-            print('bindings: ' + str(policy.bindings))
+            self.logger.debug('bindings: ' + str(policy.bindings))
         else:
-            print('No policy bindings')
+            self.logger.debug('No policy bindings')
 

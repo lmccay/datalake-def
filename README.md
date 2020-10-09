@@ -235,80 +235,9 @@ Set up and run scripts for Google Cloud Platform (GCP).
 >      Attempts to access buckets which don't belong to you will result in HTTP 403 errors, even though your
 >      permissions include the StorageAdmin role.
 
-* Create a Google Cloud Platform datalake definition
+* Create a Google Cloud Platform datalake definition from the templates
 
-		---
-		datalake: mydl
-		datalake_roles:
-		    IDBROKER_ROLE:
-		            iam_role: cdp-mydl-idbroker
-		            instance_profile: true
-		            permissions:
-		                - "iam:serviceAccountTokenCreator"
-		    LOG_ROLE:
-		            iam_role: cdp-mydl-log
-		            instance_profile: true
-		            trust: IDBROKER_ROLE
-		            permissions:
-		                - "storage:read-write-storage:LOGS_LOCATION_BASE"
-		    RANGER_AUDIT_ROLE:
-		            iam_role: cdp-mydl-ranger-audit
-		            trust: IDBROKER_ROLE
-		            permissions:
-		                - "storage:full-object-access-storage:RANGER_AUDIT_LOCATION"
-		                - "storage:read-only-storage:DATALAKE_BUCKET"
-		    DATALAKE_ADMIN_ROLE:
-		            iam_role: cdp-mydl-admin
-		            trust: IDBROKER_ROLE
-		            permissions:
-		                - "storage:full-access-storage:STORAGE_LOCATION_BASE"
-		storage:
-		    STORAGE_LOCATION_BASE:
-		            description: data directory
-		            path: /mydl
-		    DATALAKE_BUCKET:
-		            description: main data directory
-		            path: /mydl/data
-		    RANGER_AUDIT_LOCATION:
-		            description: ranger audit logs
-		            path: /mydl/ranger/audit
-		    LOGS_LOCATION_BASE:
-		            description: logs for fluentd usecases
-		            path: /mydl/logs
-		    LOGS_BUCKET:
-		            description: logs for fluentd usecases
-		            path: /mydl
-		    ALL_LOCATIONS:
-		            description: wildcard resource locations
-		            path: '*'
-		permissions:
-		    storage:
-		        full-access-storage:
-		            rank: 1
-		            description: the force
-		        full-object-access-storage:
-		            rank: 2
-		            description: jedi master
-		        read-write-storage:
-		            rank: 3
-		            description: jedi knight
-		        execute-storage:
-		            rank: 4
-		            description: padawan
-		        read-only-storage:
-		            rank: 5
-		            description: youngling 
-		        list-only-storage:
-		            rank: 6 
-		            description: hmmmm 
-		    iam:
-		        serviceAccountTokenCreator:
-		            rank: 1
-		            description: shapeshifter
-		    roles:
-		        token-creator:
-		            rank: 1
-		            description: shapeshifter
+        ddt.py "new_datalake -n mydl" "build_datalake -n mydl -c GCP" quit
 
 * Push a Google Cloud Platform datalake definition
 

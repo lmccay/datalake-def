@@ -1,5 +1,5 @@
 {
-  "roleId": "${datalake_name}_list_only_storage_role",
+  "roleId": "${datalake_name}_list_only",
   "role": {
     "description": "List-only storage role",
     "includedPermissions": [
