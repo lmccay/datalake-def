@@ -226,8 +226,9 @@ Set up and run scripts for Google Cloud Platform (GCP).
 
 
 ## Environment Setup
-* Download the key file for the Google Cloud Platform account to be used by the Datalake Definition tool
-* Set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to that key file
+* Download the key file for the Google Cloud Platform account to be used by the Datalake Definition tool.
+* Set the *GOOGLE_APPLICATION_CREDENTIALS* environment variable to point to that key file.
+* Set the *DDF_LOG_LEVEL* environment variable to __DEBUG__ to get debug-level log messages from the GCPFactory. 
 
 
 ## Examples

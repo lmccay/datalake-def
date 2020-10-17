@@ -15,7 +15,18 @@ class GCPFactory:
 
     credentials = None
 
-    custom_roles = dict()
+
+    def __init__(self):
+        log_level = os.environ.get('DDF_LOG_LEVEL')
+        if (log_level is not None):
+            if (log_level == 'DEBUG'):
+                self.logger.setLevel(logging.DEBUG)
+            if (log_level == 'WARNING'):
+                self.logger.setLevel(logging.WARNING)
+            if (log_level == 'ERROR'):
+                self.logger.setLevel(logging.ERROR)
+            if (log_level == 'CRITICAL'):
+                self.logger.setLevel(logging.CRITICAL)
 
 
     def __str__(self):
